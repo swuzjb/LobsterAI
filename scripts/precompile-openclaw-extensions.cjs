@@ -36,6 +36,19 @@ const SDK_EXTERNALS = [
   'clawdbot/plugin-sdk/*',
 ];
 
+// esbuild plugin: mark relative imports into openclaw core (../../../src/...)
+// as external — they only exist in the full openclaw source tree and are
+// resolved at runtime by jiti.
+const openclawInternalsPlugin = {
+  name: 'externalize-openclaw-internals',
+  setup(build) {
+    build.onResolve({ filter: /^\.\.\/.*\/src\// }, (args) => ({
+      path: args.path,
+      external: true,
+    }));
+  },
+};
+
 let esbuild;
 try {
   esbuild = require('esbuild');
@@ -113,6 +126,7 @@ async function main() {
         outfile: outFile,
         packages: 'external',  // All node_modules deps stay external
         external: SDK_EXTERNALS,
+        plugins: [openclawInternalsPlugin],
         // Silence warnings about __dirname/__filename in ESM
         logLevel: 'warning',
       });
