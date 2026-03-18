@@ -79,10 +79,63 @@ function padBlock(size) {
   return Buffer.alloc(BLOCK - remainder, 0);
 }
 
+// ── File/dir exclusion rules (same as electron-builder.json filters) ─────────
+
+const EXCLUDED_FILE_PATTERNS = [
+  /\.map$/i,
+  /\.d\.ts$/i,
+  /\.d\.cts$/i,
+  /\.d\.mts$/i,
+  /^readme(\.(md|txt|rst))?$/i,
+  /^changelog(\.(md|txt|rst))?$/i,
+  /^history(\.(md|txt|rst))?$/i,
+  /^license(\.(md|txt))?$/i,
+  /^licence(\.(md|txt))?$/i,
+  /^authors(\.(md|txt))?$/i,
+  /^contributors(\.(md|txt))?$/i,
+  /^\.eslintrc/i,
+  /^\.prettierrc/i,
+  /^\.editorconfig$/i,
+  /^\.npmignore$/i,
+  /^\.gitignore$/i,
+  /^\.gitattributes$/i,
+  /^tsconfig(\..+)?\.json$/i,
+  /^jest\.config/i,
+  /^vitest\.config/i,
+  /^\.babelrc/i,
+  /^babel\.config/i,
+  /\.test\.\w+$/i,
+  /\.spec\.\w+$/i,
+];
+
+const EXCLUDED_DIRS = new Set([
+  'test',
+  'tests',
+  '__tests__',
+  '__mocks__',
+  '.github',
+  'example',
+  'examples',
+  'coverage',
+  '.venv',
+]);
+
+const EXCLUDED_ENVFILE = /^\.env(\..+)?$/i;
+
+function shouldExcludeFile(name) {
+  if (EXCLUDED_ENVFILE.test(name)) return true;
+  return EXCLUDED_FILE_PATTERNS.some((p) => p.test(name));
+}
+
+function shouldExcludeDir(name) {
+  return EXCLUDED_DIRS.has(name.toLowerCase());
+}
+
 function packDirectory(sourceDir, outputTar) {
   const fd = fs.openSync(outputTar, 'w');
   let totalFiles = 0;
   let totalDirs = 0;
+  let skippedFiles = 0;
 
   function walk(dir, prefix) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -100,11 +153,16 @@ function packDirectory(sourceDir, outputTar) {
       }
 
       if (entry.isDirectory()) {
+        if (shouldExcludeDir(entry.name)) continue;
         const dirHeader = createHeader(tarPath + '/', 0, 0o755, '5');
         fs.writeSync(fd, dirHeader);
         totalDirs++;
         walk(fullPath, tarPath);
       } else if (entry.isFile()) {
+        if (shouldExcludeFile(entry.name)) {
+          skippedFiles++;
+          continue;
+        }
         const stat = fs.statSync(fullPath);
         const fileSize = stat.size;
         const header = createHeader(tarPath, fileSize, 0o644, '0');
@@ -141,7 +199,7 @@ function packDirectory(sourceDir, outputTar) {
   fs.writeSync(fd, ZERO_BLOCK);
   fs.closeSync(fd);
 
-  return { totalFiles, totalDirs };
+  return { totalFiles, totalDirs, skippedFiles };
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
@@ -162,14 +220,14 @@ function main() {
   console.log(`[pack-openclaw-tar] Output:  ${outputTar}`);
 
   const t0 = Date.now();
-  const { totalFiles, totalDirs } = packDirectory(sourceDir, outputTar);
+  const { totalFiles, totalDirs, skippedFiles } = packDirectory(sourceDir, outputTar);
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
   const stat = fs.statSync(outputTar);
   const sizeMB = (stat.size / (1024 * 1024)).toFixed(1);
 
   console.log(
-    `[pack-openclaw-tar] Done in ${elapsed}s: ${totalFiles} files, ${totalDirs} dirs, ${sizeMB} MB`
+    `[pack-openclaw-tar] Done in ${elapsed}s: ${totalFiles} files, ${totalDirs} dirs, ${skippedFiles} skipped, ${sizeMB} MB`
   );
 }
 
