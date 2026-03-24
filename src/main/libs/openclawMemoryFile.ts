@@ -96,7 +96,7 @@ export function parseMemoryMd(content: string): OpenClawMemoryEntry[] {
     const match = line.trim().match(BULLET_RE);
     if (!match?.[1]) continue;
     const text = match[1].replace(/\s+/g, ' ').trim();
-    if (!text || text.length < 2) continue;
+    if (!text || text.length < 1) continue;
 
     const fp = fingerprint(text);
     if (seen.has(fp)) continue;
@@ -326,7 +326,7 @@ export function migrateSqliteToMemoryMd(
     let skipped = 0;
     for (const raw of texts) {
       const text = raw.replace(/\s+/g, ' ').trim();
-      if (!text || text.length < 2) continue;
+      if (!text || text.length < 1) continue;
       const id = fingerprint(text);
       if (existingIds.has(id)) {
         skipped++;
