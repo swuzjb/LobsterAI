@@ -257,7 +257,11 @@ export class OpenClawChannelSessionSync {
       // Verify the Cowork session still exists
       const session = this.coworkStore.getSession(existingMapping.coworkSessionId);
       if (session) {
-        // Check if the agent binding has changed since this mapping was created
+        // Check if the agent binding has changed since this mapping was created.
+        // Background: when platformAgentBindings changes (e.g. weixin: main → music-agent),
+        // the gateway returns a new sessionKey with the new agentId, but the old mapping
+        // still points to the old session. Without this check, both old and new keys would
+        // resolve to the same session, causing duplicate message syncs.
         const imSettings = this.imStore.getIMSettings();
         const currentAgentId = imSettings.platformAgentBindings?.[parsed.platform] || 'main';
         if (existingMapping.agentId !== currentAgentId) {

@@ -775,7 +775,10 @@ export class OpenClawRuntimeAdapter extends EventEmitter implements CoworkRuntim
           // Queue full history sync for newly discovered sessions
           if (!this.fullySyncedSessions.has(sessionId)) {
             // Sessions created due to agent binding change should NOT pull old history.
-            // Instead, mark as synced and initialize cursor to current history length.
+            // The gateway still holds the full conversation from the previous agent — syncing
+            // it would pollute the new agent's session with irrelevant messages.
+            // Instead, mark as synced and initialize cursor to current history length
+            // so only messages arriving after the binding change are picked up.
             if (this.channelSessionSync.popAgentChangedSession(sessionId)) {
               console.log('[ChannelSync] agent-changed session, skipping full history sync:', sessionId);
               this.fullySyncedSessions.add(sessionId);
@@ -814,9 +817,11 @@ export class OpenClawRuntimeAdapter extends EventEmitter implements CoworkRuntim
           if (this.heartbeatSessionKeys.has(key)) continue;
           const sessionId = this.sessionIdBySessionKey.get(key);
           if (!sessionId || !this.fullySyncedSessions.has(sessionId)) continue;
-          // Deduplicate: only sync each sessionId once per poll cycle to prevent
-          // duplicate messages when multiple gateway keys map to the same session
-          // (e.g. after agent binding change).
+          // Deduplicate: only sync each sessionId once per poll cycle.
+          // After an agent binding change, the gateway may return both the old key
+          // (agent:old:channel:conv) and the new key (agent:new:channel:conv), both
+          // resolving to the same local sessionId. Without dedup, incrementalChannelSync
+          // would run twice for the same session, causing duplicate messages.
           if (syncedThisCycle.has(sessionId)) continue;
           syncedThisCycle.add(sessionId);
           // Skip sessions with an active turn (they handle their own sync)
