@@ -12,6 +12,8 @@ interface CoworkState {
   sessions: CoworkSessionSummary[];
   currentSessionId: string | null;
   currentSession: CoworkSession | null;
+  // O(1) message lookup index: messageId -> array index in currentSession.messages
+  messageIndexById: Record<string, number>;
   draftPrompts: Record<string, string>;
   unreadSessionIds: string[];
   isCoworkActive: boolean;
@@ -25,6 +27,7 @@ const initialState: CoworkState = {
   sessions: [],
   currentSessionId: null,
   currentSession: null,
+  messageIndexById: {},
   draftPrompts: {},
   unreadSessionIds: [],
   isCoworkActive: false,
@@ -56,6 +59,14 @@ const markSessionUnread = (state: CoworkState, sessionId: string) => {
 };
 
 const STREAMING_MERGE_PROBE_CHARS = 512;
+
+const buildMessageIndex = (messages: CoworkMessage[]): Record<string, number> => {
+  const index: Record<string, number> = {};
+  for (let i = 0; i < messages.length; i++) {
+    index[messages[i].id] = i;
+  }
+  return index;
+};
 
 const computeStreamingSuffixPrefixOverlap = (left: string, right: string): number => {
   const leftProbe = left.slice(-STREAMING_MERGE_PROBE_CHARS);
@@ -119,6 +130,7 @@ const coworkSlice = createSlice({
       state.currentSession = action.payload;
       if (action.payload) {
         state.currentSessionId = action.payload.id;
+        state.messageIndexById = buildMessageIndex(action.payload.messages);
         if (!action.payload.id.startsWith('temp-')) {
           const { id, title, status, pinned, createdAt, updatedAt } = action.payload;
           const summary: CoworkSessionSummary = {
@@ -140,6 +152,8 @@ const coworkSlice = createSlice({
           }
         }
         markSessionRead(state, action.payload.id);
+      } else {
+        state.messageIndexById = {};
       }
     },
 
@@ -164,6 +178,7 @@ const coworkSlice = createSlice({
       state.sessions.unshift(summary);
       state.currentSession = action.payload;
       state.currentSessionId = action.payload.id;
+      state.messageIndexById = buildMessageIndex(action.payload.messages);
       markSessionRead(state, action.payload.id);
     },
 
@@ -194,6 +209,7 @@ const coworkSlice = createSlice({
       if (state.currentSessionId === sessionId) {
         state.currentSessionId = null;
         state.currentSession = null;
+        state.messageIndexById = {};
       }
     },
 
@@ -205,6 +221,7 @@ const coworkSlice = createSlice({
       if (state.currentSessionId && sessionIds.has(state.currentSessionId)) {
         state.currentSessionId = null;
         state.currentSession = null;
+        state.messageIndexById = {};
       }
     },
 
@@ -212,8 +229,8 @@ const coworkSlice = createSlice({
       const { sessionId, message } = action.payload;
 
       if (state.currentSession?.id === sessionId) {
-        const exists = state.currentSession.messages.some((item) => item.id === message.id);
-        if (!exists) {
+        if (!(message.id in state.messageIndexById)) {
+          state.messageIndexById[message.id] = state.currentSession.messages.length;
           state.currentSession.messages.push(message);
           state.currentSession.updatedAt = message.timestamp;
         }
@@ -232,8 +249,8 @@ const coworkSlice = createSlice({
       const { sessionId, messageId, content } = action.payload;
 
       if (state.currentSession?.id === sessionId) {
-        const messageIndex = state.currentSession.messages.findIndex(m => m.id === messageId);
-        if (messageIndex !== -1) {
+        const messageIndex = state.messageIndexById[messageId];
+        if (messageIndex !== undefined) {
           const previousContent = state.currentSession.messages[messageIndex].content || '';
           if (state.config.agentEngine === 'yd_cowork') {
             state.currentSession.messages[messageIndex].content = mergeStreamingMessageContent(previousContent, content);
@@ -312,6 +329,7 @@ const coworkSlice = createSlice({
     clearCurrentSession(state) {
       state.currentSessionId = null;
       state.currentSession = null;
+      state.messageIndexById = {};
       state.isStreaming = false;
       state.remoteManaged = false;
     },
