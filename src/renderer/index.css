@@ -184,9 +184,9 @@ select::-ms-expand {
   @apply dark:bg-claude-darkSurface bg-claude-surface dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover dark:text-claude-darkText text-claude-text border dark:border-claude-darkBorder border-claude-border font-medium py-2 px-4 rounded-lg transition-colors;
 }
 
-/* Sidebar width transition - instant toggle, no animation */
+/* Sidebar width transition */
 .sidebar-transition {
-  transition: none;
+  transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Subtle separator line */
