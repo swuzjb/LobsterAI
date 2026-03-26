@@ -22,6 +22,14 @@ const SYNTAX_HIGHLIGHTER_STYLE = {
   borderRadius: 0,
   background: '#282c34',
 };
+const LINE_NUMBER_STYLE: React.CSSProperties = {
+  minWidth: '2.5em',
+  paddingRight: '1em',
+  textAlign: 'right',
+  userSelect: 'none',
+  opacity: 0.4,
+  color: '#abb2bf',
+};
 const SAFE_URL_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel', 'file']);
 
 const encodeFileUrl = (url: string): string => {
@@ -175,6 +183,54 @@ const openExternalViaAnchorFallback = (url: string): void => {
   document.body.removeChild(anchor);
 };
 
+const PlainCodeWithLineNumbers: React.FC<{ code: string; showLineNumbers?: boolean }> = ({ code, showLineNumbers = false }) => {
+  const lines = code.split('\n');
+  if (!showLineNumbers) {
+    return (
+      <code className="block px-4 py-3 font-mono text-claude-darkText whitespace-pre">
+        {code}
+      </code>
+    );
+  }
+  return (
+    <table className="border-collapse w-full">
+      <tbody>
+        {lines.map((line, i) => (
+          <tr key={i}>
+            <td
+              className="px-4 py-0 font-mono text-[13px] leading-6 align-top whitespace-nowrap"
+              style={LINE_NUMBER_STYLE}
+            >
+              {i + 1}
+            </td>
+            <td className="px-0 pr-4 py-0 font-mono text-[13px] leading-6 text-claude-darkText whitespace-pre align-top">
+              {line || '\n'}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+const CollapseIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l7.5-7.5 7.5 7.5m-15 6l7.5-7.5 7.5 7.5" />
+  </svg>
+);
+
+const ExpandIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 5.25l-7.5 7.5-7.5-7.5m15 6l-7.5 7.5-7.5-7.5" />
+  </svg>
+);
+
+const LineNumbersIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6h9m-9 3h9m-9 3h9" />
+  </svg>
+);
+
 const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
   const normalizedClassName = Array.isArray(className)
     ? className.join(' ')
@@ -188,10 +244,13 @@ const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
       : !match;
   const codeText = Array.isArray(children) ? children.join('') : String(children);
   const trimmedCodeText = codeText.replace(/\n$/, '');
+  const lineCount = trimmedCodeText.split('\n').length;
   const shouldHighlight = !isInline && match
     && trimmedCodeText.length <= CODE_BLOCK_CHAR_LIMIT
-    && trimmedCodeText.split('\n').length <= CODE_BLOCK_LINE_LIMIT;
+    && lineCount <= CODE_BLOCK_LINE_LIMIT;
   const [isCopied, setIsCopied] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showLineNumbers, setShowLineNumbers] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => () => {
@@ -213,28 +272,63 @@ const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
     }
   }, [trimmedCodeText]);
 
+  const toggleCollapse = useCallback(() => {
+    setIsCollapsed(prev => !prev);
+  }, []);
+
+  const toggleLineNumbers = useCallback(() => {
+    setShowLineNumbers(prev => !prev);
+  }, []);
+
   if (!isInline) {
     // Simple code block without language - minimal styling
     if (!match) {
       return (
         <div className="my-2 relative group">
           <div className="overflow-x-auto rounded-lg bg-[#282c34] text-[13px] leading-6">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-gray-700/80 text-gray-300 hover:bg-gray-600 transition-colors opacity-0 group-hover:opacity-100"
-              title={i18nService.t('copyToClipboard')}
-              aria-label={i18nService.t('copyToClipboard')}
-            >
-              {isCopied ? (
-                <CheckIcon className="h-4 w-4 text-green-500" />
-              ) : (
-                <ClipboardDocumentIcon className="h-4 w-4" />
-              )}
-            </button>
-            <code className="block px-4 py-3 font-mono text-claude-darkText whitespace-pre">
-              {trimmedCodeText}
-            </code>
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                type="button"
+                onClick={toggleLineNumbers}
+                className="p-1.5 rounded-md bg-gray-700/80 text-gray-300 hover:bg-gray-600 transition-colors"
+                title={showLineNumbers ? i18nService.t('codeBlockHideLineNumbers') : i18nService.t('codeBlockShowLineNumbers')}
+              >
+                <LineNumbersIcon className={`h-4 w-4 ${showLineNumbers ? 'text-blue-400' : ''}`} />
+              </button>
+              <button
+                type="button"
+                onClick={toggleCollapse}
+                className="p-1.5 rounded-md bg-gray-700/80 text-gray-300 hover:bg-gray-600 transition-colors"
+                title={isCollapsed ? i18nService.t('codeBlockExpand') : i18nService.t('codeBlockCollapse')}
+              >
+                {isCollapsed ? (
+                  <ExpandIcon className="h-4 w-4" />
+                ) : (
+                  <CollapseIcon className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="p-1.5 rounded-md bg-gray-700/80 text-gray-300 hover:bg-gray-600 transition-colors"
+                title={i18nService.t('copyToClipboard')}
+              >
+                {isCopied ? (
+                  <CheckIcon className="h-4 w-4 text-green-500" />
+                ) : (
+                  <ClipboardDocumentIcon className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            {isCollapsed ? (
+              <div className="px-4 py-3 text-xs text-gray-400 cursor-pointer select-none" onClick={toggleCollapse}>
+                {i18nService.t('codeBlockExpand')} ({lineCount} {i18nService.t('codeBlockLines')})
+              </div>
+            ) : (
+              <div className="py-3">
+                <PlainCodeWithLineNumbers code={trimmedCodeText} showLineNumbers={showLineNumbers} />
+              </div>
+            )}
           </div>
         </div>
       );
@@ -244,35 +338,65 @@ const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
     return (
       <div className="my-3 rounded-xl overflow-hidden border dark:border-claude-darkBorder border-claude-border relative shadow-subtle">
         <div className="dark:bg-claude-darkSurfaceMuted bg-claude-surfaceMuted px-4 py-2 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary font-medium flex items-center justify-between">
-          <span>{match[1]}</span>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="p-1.5 rounded-md dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover transition-colors"
-            title={i18nService.t('copyToClipboard')}
-            aria-label={i18nService.t('copyToClipboard')}
-          >
-            {isCopied ? (
-              <CheckIcon className="h-4 w-4 text-green-500" />
-            ) : (
-              <ClipboardDocumentIcon className="h-4 w-4" />
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <span>{match[1]}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={toggleLineNumbers}
+              className="p-1.5 rounded-md dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover transition-colors"
+              title={showLineNumbers ? i18nService.t('codeBlockHideLineNumbers') : i18nService.t('codeBlockShowLineNumbers')}
+              aria-label={showLineNumbers ? i18nService.t('codeBlockHideLineNumbers') : i18nService.t('codeBlockShowLineNumbers')}
+            >
+              <LineNumbersIcon className={`h-4 w-4 ${showLineNumbers ? 'text-blue-400' : ''}`} />
+            </button>
+            <button
+              type="button"
+              onClick={toggleCollapse}
+              className="p-1.5 rounded-md dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover transition-colors"
+              title={isCollapsed ? i18nService.t('codeBlockExpand') : i18nService.t('codeBlockCollapse')}
+              aria-label={isCollapsed ? i18nService.t('codeBlockExpand') : i18nService.t('codeBlockCollapse')}
+            >
+              {isCollapsed ? (
+                <ExpandIcon className="h-4 w-4" />
+              ) : (
+                <CollapseIcon className="h-4 w-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="p-1.5 rounded-md dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover transition-colors"
+              title={i18nService.t('copyToClipboard')}
+              aria-label={i18nService.t('copyToClipboard')}
+            >
+              {isCopied ? (
+                <CheckIcon className="h-4 w-4 text-green-500" />
+              ) : (
+                <ClipboardDocumentIcon className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </div>
-        {shouldHighlight ? (
+        {isCollapsed ? (
+          <div className="bg-[#282c34] px-4 py-3 text-xs text-gray-400 cursor-pointer select-none" onClick={toggleCollapse}>
+            {i18nService.t('codeBlockExpand')} ({lineCount} {i18nService.t('codeBlockLines')})
+          </div>
+        ) : shouldHighlight ? (
           <SyntaxHighlighter
             style={oneDark}
             language={match[1]}
             PreTag="div"
             customStyle={SYNTAX_HIGHLIGHTER_STYLE}
+            showLineNumbers={showLineNumbers}
+            lineNumberStyle={LINE_NUMBER_STYLE}
           >
             {trimmedCodeText}
           </SyntaxHighlighter>
         ) : (
-          <div className="m-0 overflow-x-auto bg-[#282c34] text-[13px] leading-6">
-            <code className="block px-4 py-3 font-mono text-claude-darkText whitespace-pre">
-              {trimmedCodeText}
-            </code>
+          <div className="m-0 overflow-x-auto bg-[#282c34] text-[13px] leading-6 py-3">
+            <PlainCodeWithLineNumbers code={trimmedCodeText} showLineNumbers={showLineNumbers} />
           </div>
         )}
       </div>
