@@ -65,12 +65,19 @@ export const CHANNEL_PLATFORM_MAP: Record<string, IMPlatform> = {
   feishu: 'feishu',
   'dingtalk-connector': 'dingtalk',
   qqbot: 'qq',
-  wecom: 'wecom',
   'wecom-openclaw-plugin': 'wecom',
+  wecom: 'wecom',
+  popo: 'popo',
   'moltbot-popo': 'popo',
   nim: 'nim',
   'openclaw-weixin': 'weixin',
+  xiaomifeng: 'xiaomifeng',
 };
+
+/** Reverse map: IM platform → preferred OpenClaw channel name. */
+export const PLATFORM_TO_CHANNEL_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(CHANNEL_PLATFORM_MAP).map(([channel, platform]) => [platform, channel]),
+);
 
 /** Parse a channel sessionKey into platform + conversationId.
  *  Supports three formats:
@@ -179,19 +186,24 @@ function extractCronJobId(sessionKey: string): string {
   return idx >= 0 ? sessionKey.slice(idx + 'cron:'.length) : sessionKey;
 }
 
-/** Map from platform (resolved) to title label. */
-const CHANNEL_TITLE_PREFIX: Record<string, string> = {
-  telegram: '[TG]',
-  discord: '[Discord]',
-  feishu: '[飞书]',
-  dingtalk: '[钉钉]',
-  qq: '[QQ]',
-  wecom: '[企微]',
-  'wecom-openclaw-plugin': '[企微]',
-  popo: '[POPO]',
-  nim: '[云信]',
-  weixin: '[微信]',
-};
+function getChannelTitlePrefix(platform: string): string {
+  const i18nMap: Record<string, string> = {
+    feishu: t('channelPrefixFeishu'),
+    dingtalk: t('channelPrefixDingtalk'),
+    wecom: t('channelPrefixWecom'),
+    'wecom-openclaw-plugin': t('channelPrefixWecom'),
+    nim: t('channelPrefixNim'),
+    weixin: t('channelPrefixWeixin'),
+  };
+  const staticMap: Record<string, string> = {
+    telegram: 'TG',
+    discord: 'Discord',
+    qq: 'QQ',
+    popo: 'POPO',
+  };
+  const label = i18nMap[platform] ?? staticMap[platform] ?? platform;
+  return `[${label}]`;
+}
 
 export interface ChannelSessionSyncDeps {
   coworkStore: CoworkStore;
@@ -295,7 +307,7 @@ export class OpenClawChannelSessionSync {
         const currentAgentId = imSettings.platformAgentBindings?.[parsed.platform] || 'main';
         if (existingMapping.agentId !== currentAgentId) {
           console.log('[ChannelSessionSync] agent binding changed:', existingMapping.agentId, '→', currentAgentId, '— creating new session');
-          const titlePrefix = CHANNEL_TITLE_PREFIX[parsed.platform] || `[${parsed.platform}]`;
+          const titlePrefix = getChannelTitlePrefix(parsed.platform);
           const displayId = parsed.conversationId.includes('@')
             ? parsed.conversationId.split('@')[0]
             : parsed.conversationId;
@@ -322,7 +334,7 @@ export class OpenClawChannelSessionSync {
     }
 
     // 5. Create new Cowork session
-    const titlePrefix = CHANNEL_TITLE_PREFIX[parsed.platform] || `[${parsed.platform}]`;
+    const titlePrefix = getChannelTitlePrefix(parsed.platform);
     // For conversationIds that look like email addresses (e.g. POPO),
     // use the local part before '@' as the display name.
     const displayId = parsed.conversationId.includes('@')
