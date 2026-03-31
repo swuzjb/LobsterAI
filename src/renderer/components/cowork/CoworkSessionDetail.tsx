@@ -1046,6 +1046,7 @@ const AssistantMessageItem: React.FC<{
           content={displayContent}
           className="prose dark:prose-invert max-w-none"
           resolveLocalFilePath={resolveLocalFilePath}
+          showRevealInFolderAction
         />
       </div>
       {showCopyButton && (
