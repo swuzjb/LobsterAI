@@ -26,6 +26,11 @@ interface TaskDetailProps {
 const TaskDetail: React.FC<TaskDetailProps> = ({ task, onRequestDelete }) => {
   const dispatch = useDispatch();
   const runs = useSelector((state: RootState) => state.scheduledTask.runs[task.id] ?? []);
+  const agentName = useSelector((state: RootState) => {
+    if (!task.agentId) return null;
+    const agent = state.agent.agents.find((a) => a.id === task.agentId);
+    return agent?.name ?? task.agentId;
+  });
 
   useEffect(() => {
     void scheduledTaskService.loadRuns(task.id);
@@ -100,6 +105,12 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, onRequestDelete }) => {
             <div className={labelClass}>{i18nService.t('scheduledTasksDetailNotify')}</div>
             <div className={valueClass}>{formatDeliveryLabel(task.delivery)}</div>
           </div>
+          {agentName && (
+            <div>
+              <div className={labelClass}>{i18nService.t('scheduledTasksDetailAgent' as Parameters<typeof i18nService.t>[0])}</div>
+              <div className={valueClass}>{agentName}</div>
+            </div>
+          )}
           {task.sessionKey && (
             <div className="col-span-2">
               <div className={labelClass}>{i18nService.t('scheduledTasksSessionKey')}</div>

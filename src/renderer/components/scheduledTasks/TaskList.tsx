@@ -6,7 +6,7 @@ import { selectTask, setViewMode } from '../../store/slices/scheduledTaskSlice';
 import { scheduledTaskService } from '../../services/scheduledTask';
 import { i18nService } from '../../services/i18n';
 import type { ScheduledTask } from '../../../scheduledTask/types';
-import { formatScheduleLabel, getStatusLabelKey, getStatusTone } from './utils';
+import { formatScheduleLabel, formatNextRunRelative, getStatusLabelKey, getStatusTone } from './utils';
 
 interface TaskListItemProps {
   task: ScheduledTask;
@@ -49,8 +49,15 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
         )}
       </div>
 
-      <div className="text-sm text-secondary truncate">
-        {formatScheduleLabel(task.schedule)}
+      <div className="min-w-0">
+        <div className="text-sm truncate text-secondary">
+          {formatScheduleLabel(task.schedule)}
+        </div>
+        {task.enabled && task.state.nextRunAtMs !== null && (
+          <div className="text-xs truncate text-secondary/60 mt-0.5">
+            {formatNextRunRelative(task.state.nextRunAtMs)}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-2">

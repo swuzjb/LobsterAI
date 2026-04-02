@@ -128,7 +128,7 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
               className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
                 activeTab === 'tasks'
                   ? 'text-foreground'
-                  : 'text-secondary hover:hover:text-foreground'
+                  : 'text-secondary hover:text-foreground'
               }`}
             >
               {i18nService.t('scheduledTasksTabTasks')}
@@ -142,7 +142,7 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
               className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
                 activeTab === 'history'
                   ? 'text-foreground'
-                  : 'text-secondary hover:hover:text-foreground'
+                  : 'text-secondary hover:text-foreground'
               }`}
             >
               {i18nService.t('scheduledTasksTabHistory')}
@@ -164,7 +164,7 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className={`flex-1 min-h-0 ${(viewMode === 'create' || viewMode === 'edit') ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
         {showTabs && activeTab === 'history' ? (
           <AllRunsHistory />
         ) : (
@@ -174,7 +174,14 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
               <TaskForm
                 mode="create"
                 onCancel={handleBackToList}
-                onSaved={handleBackToList}
+                onSaved={(newTaskId) => {
+                  if (newTaskId) {
+                    dispatch(selectTask(newTaskId));
+                    dispatch(setViewMode('detail'));
+                  } else {
+                    handleBackToList();
+                  }
+                }}
               />
             )}
             {viewMode === 'edit' && selectedTask && (

@@ -86,14 +86,15 @@ class ScheduledTaskService {
     }
   }
 
-  async createTask(input: ScheduledTaskInput): Promise<void> {
+  async createTask(input: ScheduledTaskInput): Promise<string | null> {
     const api = window.electron?.scheduledTasks;
-    if (!api) return;
+    if (!api) return null;
 
     try {
       const result = await api.create(input);
       if (result.success && result.task) {
         store.dispatch(addTask(result.task));
+        return result.task.id;
       } else {
         throw new Error(result.error || 'Failed to create task');
       }
