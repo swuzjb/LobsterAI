@@ -652,6 +652,90 @@ const lightThemeExt = EditorView.theme({
 const CODE_BLOCK_LINE_LIMIT = 200;
 const CODE_BLOCK_CHAR_LIMIT = 20000;
 
+/**
+ * Maps language identifiers (as they appear in fenced code blocks) to their
+ * canonical file extensions. Covers the most common languages; falls back to
+ * the raw language string when no mapping is found.
+ */
+const LANG_TO_EXT: Record<string, string> = {
+  // Web
+  javascript: 'js',
+  js: 'js',
+  jsx: 'jsx',
+  typescript: 'ts',
+  ts: 'ts',
+  tsx: 'tsx',
+  html: 'html',
+  css: 'css',
+  scss: 'scss',
+  sass: 'sass',
+  less: 'less',
+  // Systems
+  python: 'py',
+  py: 'py',
+  ruby: 'rb',
+  rb: 'rb',
+  rust: 'rs',
+  rs: 'rs',
+  go: 'go',
+  java: 'java',
+  kotlin: 'kt',
+  kt: 'kt',
+  swift: 'swift',
+  'c++': 'cpp',
+  cpp: 'cpp',
+  'c#': 'cs',
+  cs: 'cs',
+  c: 'c',
+  'objective-c': 'm',
+  objc: 'm',
+  // Scripting / config
+  shell: 'sh',
+  bash: 'sh',
+  sh: 'sh',
+  zsh: 'sh',
+  powershell: 'ps1',
+  ps1: 'ps1',
+  lua: 'lua',
+  perl: 'pl',
+  php: 'php',
+  r: 'r',
+  matlab: 'm',
+  // Data / markup
+  json: 'json',
+  yaml: 'yaml',
+  yml: 'yml',
+  toml: 'toml',
+  xml: 'xml',
+  markdown: 'md',
+  md: 'md',
+  csv: 'csv',
+  // Infrastructure / query
+  sql: 'sql',
+  graphql: 'graphql',
+  gql: 'graphql',
+  dockerfile: 'dockerfile',
+  hcl: 'tf',
+  tf: 'tf',
+  protobuf: 'proto',
+  proto: 'proto',
+  // Other
+  scala: 'scala',
+  elixir: 'ex',
+  erlang: 'erl',
+  haskell: 'hs',
+  clojure: 'clj',
+  dart: 'dart',
+  vue: 'vue',
+  svelte: 'svelte',
+};
+
+function inferFileExtension(lang: string | null): string {
+  if (!lang) return 'txt';
+  const lower = lang.toLowerCase();
+  return LANG_TO_EXT[lower] ?? lower;
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -1146,8 +1230,8 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ node, className, children, ...pro
 
   const handleSave = useCallback(() => {
     try {
-      const ext = rawLang ? `.${rawLang}` : '.txt';
-      const fileName = `code${ext}`;
+      const ext = inferFileExtension(rawLang);
+      const fileName = `code.${ext}`;
       const blob = new Blob([trimmedCodeText], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
