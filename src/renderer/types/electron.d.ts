@@ -506,6 +506,16 @@ interface IElectronAPI {
   networkStatus: {
     send: (status: 'online' | 'offline') => void;
   };
+  auth: {
+    login: (loginUrl?: string) => Promise<{ success: boolean; error?: string }>;
+    exchange: (code: string) => Promise<{ success: boolean; user?: { userId: string; phone: string; nickname: string; avatarUrl: string }; quota?: { planName: string; subscriptionStatus: string; creditsLimit: number; creditsUsed: number; creditsRemaining: number }; error?: string }>;
+    getUser: () => Promise<{ success: boolean; user?: { userId: string; phone: string; nickname: string; avatarUrl: string }; quota?: { planName: string; subscriptionStatus: string; creditsLimit: number; creditsUsed: number; creditsRemaining: number } }>;
+    getQuota: () => Promise<{ success: boolean; quota?: { planName: string; subscriptionStatus: string; creditsLimit: number; creditsUsed: number; creditsRemaining: number } }>;
+    logout: () => Promise<{ success: boolean }>;
+    refreshToken: () => Promise<{ success: boolean; accessToken?: string }>;
+    getAccessToken: () => Promise<string | null>;
+    onCallback: (callback: (data: { code: string }) => void) => () => void;
+  };
   qwen: {
     oauthLogin: () => Promise<{ success: boolean; data?: QwenOAuthToken; error?: string }>;
     oauthRefresh: (refreshToken: string) => Promise<{ success: boolean; data?: QwenOAuthToken; error?: string }>;

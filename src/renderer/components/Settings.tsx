@@ -10,7 +10,7 @@ import { decryptSecret, encryptWithPassword, decryptWithPassword, EncryptedPaylo
 import { coworkService } from '../services/cowork';
 import { APP_ID, EXPORT_FORMAT_TYPE, EXPORT_PASSWORD } from '../constants/app';
 import ErrorMessage from './ErrorMessage';
-import { XMarkIcon, Cog6ToothIcon, SignalIcon, CheckCircleIcon, XCircleIcon, CubeIcon, ChatBubbleLeftIcon, EnvelopeIcon, CpuChipIcon, InformationCircleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, Cog6ToothIcon, SignalIcon, CheckCircleIcon, XCircleIcon, CubeIcon, ChatBubbleLeftIcon, EnvelopeIcon, CpuChipIcon, InformationCircleIcon, UserCircleIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { EyeIcon, EyeSlashIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/20/solid';
 import PlusCircleIcon from './icons/PlusCircleIcon';
 import TrashIcon from './icons/TrashIcon';
@@ -165,6 +165,23 @@ const providerMeta: Record<ProviderType, { label: string; icon: React.ReactNode 
   ...Object.fromEntries(
     CUSTOM_PROVIDER_KEYS.map(key => [key, { label: getCustomProviderDefaultName(key), icon: <CustomProviderIcon /> }])
   ) as Record<(typeof CUSTOM_PROVIDER_KEYS)[number], { label: string; icon: React.ReactNode }>,
+};
+
+const providerLinks: Partial<Record<ProviderType, { website: string; apiKey?: string }>> = {
+  openai:       { website: 'https://platform.openai.com',              apiKey: 'https://platform.openai.com/api-keys' },
+  gemini:       { website: 'https://aistudio.google.com',              apiKey: 'https://aistudio.google.com/apikey' },
+  anthropic:    { website: 'https://console.anthropic.com',            apiKey: 'https://console.anthropic.com/settings/keys' },
+  deepseek:     { website: 'https://platform.deepseek.com',            apiKey: 'https://platform.deepseek.com/api_keys' },
+  moonshot:     { website: 'https://platform.moonshot.cn',             apiKey: 'https://platform.moonshot.cn/console/api-keys' },
+  zhipu:        { website: 'https://open.bigmodel.cn',                 apiKey: 'https://open.bigmodel.cn/usercenter/apikeys' },
+  minimax:      { website: 'https://platform.minimaxi.com',            apiKey: 'https://platform.minimaxi.com/user-center/basic-information/interface-key' },
+  volcengine:   { website: 'https://console.volcengine.com/ark',       apiKey: 'https://console.volcengine.com/ark' },
+  qwen:         { website: 'https://dashscope.console.aliyun.com',     apiKey: 'https://dashscope.console.aliyun.com/apiKey' },
+  youdaozhiyun: { website: 'https://ai.youdao.com',                    apiKey: 'https://ai.youdao.com/console' },
+  stepfun:      { website: 'https://platform.stepfun.com',             apiKey: 'https://platform.stepfun.com/interface-key' },
+  xiaomi:       { website: 'https://dev.mi.com/platform',              apiKey: 'https://dev.mi.com/platform' },
+  openrouter:   { website: 'https://openrouter.ai',                    apiKey: 'https://openrouter.ai/keys' },
+  ollama:       { website: 'https://ollama.com' },
 };
 
 const providerRequiresApiKey = (provider: ProviderType) => provider !== 'ollama' && provider !== 'github-copilot';
@@ -3070,12 +3087,25 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
             {/* Provider Settings - Right Side */}
             <div className="w-3/5 pl-4 pr-2 space-y-4 overflow-y-auto [scrollbar-gutter:stable]">
               <div className="flex items-center justify-between pb-2 border-b border-border">
-                <h3 className="text-base font-medium text-foreground">
-                  {isCustomProvider(activeProvider)
-                    ? ((providers[activeProvider] as ProviderConfig)?.displayName || getCustomProviderDefaultName(activeProvider))
-                    : (providerMeta[activeProvider]?.label ?? getProviderDisplayName(activeProvider))
-                  } {i18nService.t('providerSettings')}
-                </h3>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-base font-medium text-foreground">
+                    {isCustomProvider(activeProvider)
+                      ? ((providers[activeProvider] as ProviderConfig)?.displayName || getCustomProviderDefaultName(activeProvider))
+                      : (providerMeta[activeProvider]?.label ?? getProviderDisplayName(activeProvider))
+                    } {i18nService.t('providerSettings')}
+                  </h3>
+                  {providerLinks[activeProvider]?.website && (
+                    <button
+                      type="button"
+                      onClick={() => void window.electron.shell.openExternal(providerLinks[activeProvider]!.website)}
+                      className="p-0.5 rounded text-secondary hover:text-primary transition-colors"
+                      title={i18nService.t('visitOfficialSite')}
+                      aria-label={i18nService.t('visitOfficialSite')}
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
                 <div
                   className={`px-2 py-0.5 rounded-lg text-xs font-medium ${
                     providers[activeProvider].enabled
@@ -3115,7 +3145,22 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
                   {/* API Key mode */}
                   {providers.minimax.authType !== 'oauth' && (
-                    <div className="relative">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label htmlFor="minimax-apiKey" className="block text-xs font-medium dark:text-claude-darkText text-claude-text">
+                          {i18nService.t('apiKey')}
+                        </label>
+                        {providerLinks.minimax?.apiKey && (
+                          <button
+                            type="button"
+                            onClick={() => void window.electron.shell.openExternal(providerLinks.minimax!.apiKey!)}
+                            className="text-[11px] text-claude-accent hover:underline transition-colors"
+                          >
+                            {i18nService.t('getApiKey')} →
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
                       <input
                         type={showApiKey ? 'text' : 'password'}
                         id="minimax-apiKey"
@@ -3143,6 +3188,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
                         >
                           {showApiKey ? <EyeIcon className="h-4 w-4" /> : <EyeSlashIcon className="h-4 w-4" />}
                         </button>
+                      </div>
                       </div>
                     </div>
                   )}
@@ -3302,9 +3348,20 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
                   {/* Standard API Key input for non-Qwen providers */}
                   {activeProvider !== 'qwen' && (
                     <div>
-                      <label htmlFor={`${activeProvider}-apiKey`} className="block text-xs font-medium dark:text-claude-darkText text-claude-text mb-1">
-                        {i18nService.t('apiKey')}
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label htmlFor={`${activeProvider}-apiKey`} className="block text-xs font-medium dark:text-claude-darkText text-claude-text">
+                          {i18nService.t('apiKey')}
+                        </label>
+                        {providerLinks[activeProvider]?.apiKey && (
+                          <button
+                            type="button"
+                            onClick={() => void window.electron.shell.openExternal(providerLinks[activeProvider]!.apiKey!)}
+                            className="text-[11px] text-claude-accent hover:underline transition-colors"
+                          >
+                            {i18nService.t('getApiKey')} →
+                          </button>
+                        )}
+                      </div>
                       <div className="relative">
                         <input
                           type={showApiKey ? 'text' : 'password'}
@@ -3379,9 +3436,20 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
                       {/* API Key Tab */}
                       {qwenAuthTab === 'apikey' && (
                         <div>
-                          <label htmlFor="qwen-apiKey" className="block text-xs font-medium dark:text-claude-darkText text-claude-text mb-1">
-                            API Key
-                          </label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label htmlFor="qwen-apiKey" className="block text-xs font-medium dark:text-claude-darkText text-claude-text">
+                              API Key
+                            </label>
+                            {providerLinks.qwen?.apiKey && (
+                              <button
+                                type="button"
+                                onClick={() => void window.electron.shell.openExternal(providerLinks.qwen!.apiKey!)}
+                                className="text-[11px] text-claude-accent hover:underline transition-colors"
+                              >
+                                {i18nService.t('getApiKey')} →
+                              </button>
+                            )}
+                          </div>
                           <div className="relative">
                             <input
                               type={showApiKey ? 'text' : 'password'}
