@@ -50,12 +50,39 @@ const mapApiTypeToOpenClawApi = (
   providerName?: string,
   baseURL?: string,
 ): OpenClawProviderApi => {
+  // Qwen/DashScope Anthropic-compatible endpoint auto-injects web_search and
+  // web_extractor built-in tools that cannot be disabled from the client side,
+  // causing HTTP 400 errors. Force OpenAI format for any URL pointing to DashScope.
+  if (apiType === 'anthropic' && isDashScopeUrl(baseURL)) {
+    return 'openai-completions';
+  }
   if (apiType === 'openai') {
     return shouldUseOpenAIResponsesApi(providerName, baseURL)
       ? 'openai-responses'
       : 'openai-completions';
   }
   return 'anthropic-messages';
+};
+
+/**
+ * Detect DashScope (Qwen) URLs regardless of which provider the user configured.
+ */
+const isDashScopeUrl = (url?: string): boolean =>
+  !!url && /dashscope\.aliyuncs\.com/i.test(url);
+
+/**
+ * When a DashScope Anthropic URL is forced to OpenAI format, rewrite the base
+ * URL to the corresponding OpenAI-compatible endpoint so the request actually
+ * reaches the correct API server.
+ *
+ * dashscope.aliyuncs.com/apps/anthropic       → dashscope.aliyuncs.com/compatible-mode/v1
+ * coding.dashscope.aliyuncs.com/apps/anthropic → coding.dashscope.aliyuncs.com/v1
+ */
+const rewriteDashScopeAnthropicToOpenAI = (url: string): string => {
+  if (/coding\.dashscope\.aliyuncs\.com/i.test(url)) {
+    return url.replace(/\/apps\/anthropic\b/i, '/v1');
+  }
+  return url.replace(/\/apps\/anthropic\b/i, '/compatible-mode/v1');
 };
 
 const ensureDir = (dirPath: string): void => {
@@ -409,7 +436,7 @@ const PROVIDER_REGISTRY: Record<string, ProviderDescriptor> = {
 
   [ProviderName.Moonshot]: {
     providerId: OpenClawProviderId.Moonshot,
-    resolveApi: ({ apiType }) => mapApiTypeToOpenClawApi(apiType),
+    resolveApi: ({ apiType, baseURL }) => mapApiTypeToOpenClawApi(apiType, undefined, baseURL),
     normalizeBaseUrl: stripChatCompletionsSuffix,
     modelDefaults: {
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -444,31 +471,31 @@ const PROVIDER_REGISTRY: Record<string, ProviderDescriptor> = {
 
   [ProviderName.DeepSeek]: {
     providerId: OpenClawProviderId.DeepSeek,
-    resolveApi: ({ apiType }) => mapApiTypeToOpenClawApi(apiType),
+    resolveApi: ({ apiType, baseURL }) => mapApiTypeToOpenClawApi(apiType, undefined, baseURL),
     normalizeBaseUrl: stripChatCompletionsSuffix,
   },
 
   [ProviderName.Qwen]: {
     providerId: OpenClawProviderId.Qwen,
-    resolveApi: ({ apiType }) => mapApiTypeToOpenClawApi(apiType),
+    resolveApi: ({ apiType, baseURL }) => mapApiTypeToOpenClawApi(apiType, undefined, baseURL),
     normalizeBaseUrl: stripChatCompletionsSuffix,
   },
 
   [ProviderName.Zhipu]: {
     providerId: OpenClawProviderId.Zai,
-    resolveApi: ({ apiType }) => mapApiTypeToOpenClawApi(apiType),
+    resolveApi: ({ apiType, baseURL }) => mapApiTypeToOpenClawApi(apiType, undefined, baseURL),
     normalizeBaseUrl: stripChatCompletionsSuffix,
   },
 
   [ProviderName.Volcengine]: {
     providerId: OpenClawProviderId.Volcengine,
-    resolveApi: ({ apiType }) => mapApiTypeToOpenClawApi(apiType),
+    resolveApi: ({ apiType, baseURL }) => mapApiTypeToOpenClawApi(apiType, undefined, baseURL),
     normalizeBaseUrl: stripChatCompletionsSuffix,
   },
 
   [ProviderName.Minimax]: {
     providerId: OpenClawProviderId.Minimax,
-    resolveApi: ({ apiType }) => mapApiTypeToOpenClawApi(apiType),
+    resolveApi: ({ apiType, baseURL }) => mapApiTypeToOpenClawApi(apiType, undefined, baseURL),
     normalizeBaseUrl: stripChatCompletionsSuffix,
   },
 
@@ -486,13 +513,13 @@ const PROVIDER_REGISTRY: Record<string, ProviderDescriptor> = {
 
   [ProviderName.Xiaomi]: {
     providerId: OpenClawProviderId.Xiaomi,
-    resolveApi: ({ apiType }) => mapApiTypeToOpenClawApi(apiType),
+    resolveApi: ({ apiType, baseURL }) => mapApiTypeToOpenClawApi(apiType, undefined, baseURL),
     normalizeBaseUrl: stripChatCompletionsSuffix,
   },
 
   [ProviderName.OpenRouter]: {
     providerId: OpenClawProviderId.OpenRouter,
-    resolveApi: ({ apiType }) => mapApiTypeToOpenClawApi(apiType),
+    resolveApi: ({ apiType, baseURL }) => mapApiTypeToOpenClawApi(apiType, undefined, baseURL),
     normalizeBaseUrl: stripChatCompletionsSuffix,
   },
 
@@ -516,7 +543,7 @@ const PROVIDER_REGISTRY: Record<string, ProviderDescriptor> = {
 
 const DEFAULT_DESCRIPTOR: ProviderDescriptor = {
   providerId: OpenClawProviderId.Lobster,
-  resolveApi: ({ apiType }) => mapApiTypeToOpenClawApi(apiType),
+  resolveApi: ({ apiType, baseURL }) => mapApiTypeToOpenClawApi(apiType, undefined, baseURL),
   normalizeBaseUrl: stripChatCompletionsSuffix,
 };
 
@@ -552,11 +579,17 @@ export const buildProviderSelection = (options: {
   const providerName = options.providerName ?? '';
   const descriptor = resolveDescriptor(providerName, !!options.codingPlanEnabled);
 
-  const baseUrl = descriptor.resolveRuntimeBaseUrl?.() ?? descriptor.normalizeBaseUrl(options.baseURL);
+  let baseUrl = descriptor.resolveRuntimeBaseUrl?.() ?? descriptor.normalizeBaseUrl(options.baseURL);
   const api = descriptor.resolveApi({
     apiType: options.apiType,
     baseURL: options.baseURL,
   });
+
+  // When DashScope Anthropic URL is forced to OpenAI format, rewrite the
+  // base URL to the corresponding OpenAI-compatible endpoint.
+  if (api === 'openai-completions' && options.apiType === 'anthropic' && isDashScopeUrl(baseUrl)) {
+    baseUrl = rewriteDashScopeAnthropicToOpenAI(baseUrl);
+  }
   const apiKey = descriptor.resolveApiKey
     ? descriptor.resolveApiKey({ apiKey: options.apiKey, providerName })
     : `\${${providerApiKeyEnvVar(providerName)}}`;
