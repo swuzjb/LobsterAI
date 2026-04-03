@@ -1,27 +1,28 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import Modal from '../common/Modal';
-import { useDispatch, useSelector } from 'react-redux';
+import { ArrowPathIcon } from '@heroicons/react/20/solid';
 import {
   ArrowDownTrayIcon,
   CheckCircleIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { ArrowPathIcon } from '@heroicons/react/20/solid';
-import SearchIcon from '../icons/SearchIcon';
-import PlusCircleIcon from '../icons/PlusCircleIcon';
-import UploadIcon from '../icons/UploadIcon';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useDispatch, useSelector } from 'react-redux';
+
+import { i18nService } from '../../services/i18n';
+import { compareVersions,resolveLocalizedText, skillService } from '../../services/skill';
+import { RootState } from '../../store';
+import { setSkills } from '../../store/slices/skillSlice';
+import { MarketplaceSkill, MarketTag,Skill } from '../../types/skill';
+import Modal from '../common/Modal';
+import ErrorMessage from '../ErrorMessage';
 import FolderOpenIcon from '../icons/FolderOpenIcon';
 import LinkIcon from '../icons/LinkIcon';
-import PuzzleIcon from '../icons/PuzzleIcon';
-import TrashIcon from '../icons/TrashIcon';
 import PencilSquareIcon from '../icons/PencilSquareIcon';
-import { i18nService } from '../../services/i18n';
-import { skillService, resolveLocalizedText, compareVersions } from '../../services/skill';
-import { setSkills } from '../../store/slices/skillSlice';
-import { RootState } from '../../store';
-import { Skill, MarketplaceSkill, MarketTag } from '../../types/skill';
-import ErrorMessage from '../ErrorMessage';
+import PlusCircleIcon from '../icons/PlusCircleIcon';
+import PuzzleIcon from '../icons/PuzzleIcon';
+import SearchIcon from '../icons/SearchIcon';
+import TrashIcon from '../icons/TrashIcon';
+import UploadIcon from '../icons/UploadIcon';
 import SkillSecurityReport from './SkillSecurityReport';
 
 type SkillTab = 'installed' | 'marketplace';
@@ -531,7 +532,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
         </p>
       </div>
 
-      {skillActionError && (
+      {skillActionError && !isRemoteImportOpen && (
         <ErrorMessage
           message={skillActionError}
           onClose={() => setSkillActionError('')}
@@ -1138,14 +1139,14 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
       , document.body)}
 
       {isRemoteImportOpen && createPortal(
-        <Modal onClose={() => setIsRemoteImportOpen(false)} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/60" className="w-full max-w-md mx-4 rounded-2xl bg-surface border border-border shadow-2xl p-6">
+        <Modal onClose={() => { setIsRemoteImportOpen(false); setSkillActionError(''); }} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/60" className="w-full max-w-md mx-4 rounded-2xl bg-surface border border-border shadow-2xl p-6">
             <div className="flex items-start justify-between">
               <div className="text-lg font-semibold text-foreground">
                 {i18nService.t('remoteImportTitle')}
               </div>
               <button
                 type="button"
-                onClick={() => setIsRemoteImportOpen(false)}
+                onClick={() => { setIsRemoteImportOpen(false); setSkillActionError(''); }}
                 className="p-1.5 rounded-lg text-secondary hover:text-foreground hover:bg-surface-raised transition-colors"
               >
                 <XMarkIcon className="h-5 w-5" />
