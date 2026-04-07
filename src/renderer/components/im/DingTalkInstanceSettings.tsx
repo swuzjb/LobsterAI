@@ -281,7 +281,9 @@ const DingTalkInstanceSettings: React.FC<DingTalkInstanceSettingsProps> = ({
 
       {/* Client ID (AppKey) */}
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-secondary">Client ID (AppKey) *</label>
+        <label className="block text-xs font-medium text-secondary">
+          Client ID (AppKey) <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
+        </label>
         <div className="relative">
           <input
             type="text"
@@ -312,7 +314,7 @@ const DingTalkInstanceSettings: React.FC<DingTalkInstanceSettingsProps> = ({
       {/* Client Secret (AppSecret) */}
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">
-          Client Secret (AppSecret) *
+          Client Secret (AppSecret) <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
         </label>
         <div className="relative">
           <input

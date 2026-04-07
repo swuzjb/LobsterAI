@@ -180,7 +180,9 @@ const QQInstanceSettings: React.FC<QQInstanceSettingsProps> = ({
 
       {/* AppID */}
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-secondary">AppID *</label>
+        <label className="block text-xs font-medium text-secondary">
+          AppID <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
+        </label>
         <div className="relative">
           <input
             type="text"
@@ -210,7 +212,9 @@ const QQInstanceSettings: React.FC<QQInstanceSettingsProps> = ({
 
       {/* AppSecret */}
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-secondary">AppSecret *</label>
+        <label className="block text-xs font-medium text-secondary">
+          AppSecret <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
+        </label>
         <div className="relative">
           <input
             type={showSecrets['appSecret'] ? 'text' : 'password'}

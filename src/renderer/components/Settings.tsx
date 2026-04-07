@@ -3351,7 +3351,8 @@ const Settings: React.FC<SettingsProps> = ({
                           htmlFor="minimax-apiKey"
                           className="block text-xs font-medium dark:text-claude-darkText text-claude-text"
                         >
-                          {i18nService.t('apiKey')} *
+                          {i18nService.t('apiKey')}{' '}
+                          <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
                         </label>
                         {providerLinks.minimax?.apiKey && (
                           <button
@@ -3575,7 +3576,8 @@ const Settings: React.FC<SettingsProps> = ({
                           htmlFor={`${activeProvider}-apiKey`}
                           className="block text-xs font-medium dark:text-claude-darkText text-claude-text"
                         >
-                          {i18nService.t('apiKey')} *
+                          {i18nService.t('apiKey')}{' '}
+                          <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
                         </label>
                         {providerLinks[activeProvider]?.apiKey && (
                           <button
@@ -3644,7 +3646,7 @@ const Settings: React.FC<SettingsProps> = ({
                           htmlFor="qwen-apiKey"
                           className="block text-xs font-medium dark:text-claude-darkText text-claude-text"
                         >
-                          API Key *
+                          API Key <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
                         </label>
                         {providerLinks.qwen?.apiKey && (
                           <button
@@ -4741,7 +4743,8 @@ const Settings: React.FC<SettingsProps> = ({
                   <>
                     <div>
                       <label className="block text-xs font-medium text-secondary mb-1">
-                        {i18nService.t('ollamaModelName')} *
+                        {i18nService.t('ollamaModelName')}{' '}
+                        <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
                       </label>
                       <input
                         autoFocus
@@ -4788,7 +4791,8 @@ const Settings: React.FC<SettingsProps> = ({
                   <>
                     <div>
                       <label className="block text-xs font-medium text-secondary mb-1">
-                        {i18nService.t('modelName')} *
+                        {i18nService.t('modelName')}{' '}
+                        <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
                       </label>
                       <input
                         autoFocus
@@ -4806,7 +4810,8 @@ const Settings: React.FC<SettingsProps> = ({
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-secondary mb-1">
-                        {i18nService.t('modelId')} *
+                        {i18nService.t('modelId')}{' '}
+                        <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
                       </label>
                       <input
                         type="text"
@@ -4886,7 +4891,8 @@ const Settings: React.FC<SettingsProps> = ({
                 )}
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-1">
-                    {i18nService.t('coworkMemoryCrudContentLabel')} *
+                    {i18nService.t('coworkMemoryCrudContentLabel')}{' '}
+                    <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
                   </label>
                   <textarea
                     value={coworkMemoryDraftText}

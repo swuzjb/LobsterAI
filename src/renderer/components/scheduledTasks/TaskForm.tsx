@@ -743,7 +743,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
       </h2>
 
       <div>
-        <label className={labelClass}>{i18nService.t('scheduledTasksFormName')} *</label>
+        <label className={labelClass}>
+          {i18nService.t('scheduledTasksFormName')}{' '}
+          <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
+        </label>
         <input
           type="text"
           value={form.name}
@@ -756,7 +759,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
 
       <div>
         <label className={labelClass}>
-          {i18nService.t('scheduledTasksFormPayloadTextAgent')} *
+          {i18nService.t('scheduledTasksFormPayloadTextAgent')}{' '}
+          <span className="text-red-500 dark:text-red-400 ml-0.5">*</span>
         </label>
         <div className="rounded-lg border dark:border-claude-darkBorder border-claude-border dark:bg-claude-darkSurface bg-white focus-within:ring-1 focus-within:ring-claude-accent/40 focus-within:border-claude-accent">
           <textarea
