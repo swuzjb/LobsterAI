@@ -1,12 +1,13 @@
+import { ClockIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { ClockIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline';
+
+import type { ScheduledTask } from '../../../scheduledTask/types';
+import { i18nService } from '../../services/i18n';
+import { scheduledTaskService } from '../../services/scheduledTask';
 import { RootState } from '../../store';
 import { selectTask, setViewMode } from '../../store/slices/scheduledTaskSlice';
-import { scheduledTaskService } from '../../services/scheduledTask';
-import { i18nService } from '../../services/i18n';
-import type { ScheduledTask } from '../../../scheduledTask/types';
-import { formatScheduleLabel, formatNextRunRelative, getStatusLabelKey, getStatusTone } from './utils';
+import { formatNextRunRelative, formatScheduleLabel, getStatusLabelKey, getStatusTone } from './utils';
 
 function useAgentName(agentId: string | null | undefined): string | null {
   return useSelector((state: RootState) => {
