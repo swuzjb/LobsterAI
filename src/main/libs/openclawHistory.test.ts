@@ -1,12 +1,17 @@
 import { describe, expect, test } from 'vitest';
-import { extractGatewayHistoryEntry, extractGatewayHistoryEntries, extractGatewayMessageText, buildScheduledReminderSystemMessage } from './openclawHistory';
+import {
+  extractGatewayHistoryEntry,
+  extractGatewayHistoryEntries,
+  extractGatewayMessageText,
+  buildScheduledReminderSystemMessage,
+} from './openclawHistory';
 
 describe('openclawHistory', () => {
   test('extracts plain text content blocks', () => {
     expect(
       extractGatewayMessageText({
         content: [{ type: 'text', text: 'hello world' }],
-      })
+      }),
     ).toBe('hello world');
   });
 
@@ -14,7 +19,7 @@ describe('openclawHistory', () => {
     expect(
       extractGatewayMessageText({
         content: [{ type: 'output_text', text: 'gemini output' }],
-      })
+      }),
     ).toBe('gemini output');
   });
 
@@ -28,7 +33,7 @@ describe('openclawHistory', () => {
             { text: 'second line' },
           ],
         },
-      })
+      }),
     ).toBe('first line\nsecond line');
   });
 
@@ -37,7 +42,7 @@ describe('openclawHistory', () => {
       extractGatewayHistoryEntry({
         role: 'assistant',
         content: [{ type: 'output_text', text: 'final answer' }],
-      })
+      }),
     ).toEqual({
       role: 'assistant',
       text: 'final answer',

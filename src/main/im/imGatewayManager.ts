@@ -4,39 +4,40 @@
  * and Telegram, Discord, QQ, WeCom, Weixin, POPO, NeteaseBee via OpenClaw
  */
 
+import Database from 'better-sqlite3';
 import { EventEmitter } from 'events';
 import * as path from 'path';
+
+import { classifyErrorKey } from '../../common/coworkErrorClassify';
+import type { CoworkStore } from '../coworkStore';
 import { t } from '../i18n';
-import { NimGateway } from './nimGateway';
+import type { CoworkRuntime } from '../libs/agentEngine/types';
+import { fetchJsonWithTimeout } from './http';
 import { IMChatHandler } from './imChatHandler';
 import { IMCoworkHandler } from './imCoworkHandler';
-import { IMStore } from './imStore';
+import {
+  buildDingTalkSendParamsFromRoute,
+  buildDingTalkSessionKeyCandidates,
+  type OpenClawDeliveryRoute,
+  resolveManagedSessionDeliveryRoute,
+  resolveOpenClawDeliveryRouteForSessionKeys,
+} from './imDeliveryRoute';
 import type {
   IMScheduledTaskCreationResult,
   ParsedIMScheduledTaskRequest,
 } from './imScheduledTaskHandler';
 import { createIMScheduledTaskRequestDetector } from './imScheduledTaskHandler';
+import { IMStore } from './imStore';
+import { NimGateway } from './nimGateway';
 import {
-  buildDingTalkSessionKeyCandidates,
-  buildDingTalkSendParamsFromRoute,
-  type OpenClawDeliveryRoute,
-  resolveManagedSessionDeliveryRoute,
-  resolveOpenClawDeliveryRouteForSessionKeys,
-} from './imDeliveryRoute';
-import { fetchJsonWithTimeout } from './http';
-import {
-  IMGatewayConfig,
-  IMGatewayStatus,
-  Platform,
-  IMMessage,
   IMConnectivityCheck,
   IMConnectivityTestResult,
   IMConnectivityVerdict,
+  IMGatewayConfig,
+  IMGatewayStatus,
+  IMMessage,
+  Platform,
 } from './types';
-import Database from 'better-sqlite3';
-import type { CoworkRuntime } from '../libs/agentEngine/types';
-import type { CoworkStore } from '../coworkStore';
-import { classifyErrorKey } from '../../common/coworkErrorClassify';
 const CONNECTIVITY_TIMEOUT_MS = 10_000;
 const INBOUND_ACTIVITY_WARN_AFTER_MS = 2 * 60 * 1000;
 

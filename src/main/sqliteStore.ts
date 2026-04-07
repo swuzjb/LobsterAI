@@ -1,9 +1,10 @@
+import Database from 'better-sqlite3';
+import crypto from 'crypto';
 import { app } from 'electron';
 import { EventEmitter } from 'events';
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import Database from 'better-sqlite3';
+
 import { DB_FILENAME } from './appConstants';
 
 type ChangePayload<T = unknown> = {
