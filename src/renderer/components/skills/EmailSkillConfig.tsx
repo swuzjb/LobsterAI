@@ -727,7 +727,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
             <button
               type="button"
               onClick={() => handleAskAI(null, connectivityError)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-border-subtle text-secondary hover:bg-surface-hover hover:text-accent transition-colors active:scale-[0.98]"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-claude-accent/50 text-claude-accent hover:bg-claude-accent/10 transition-colors active:scale-[0.98]"
             >
               <SparklesIcon className="h-3 w-3" />
               {i18nService.t('emailConnectivityAskAI')}
@@ -783,7 +783,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
               <button
                 type="button"
                 onClick={() => handleAskAI(connectivityResult, null)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-border-subtle text-secondary hover:bg-surface-hover hover:text-accent transition-colors active:scale-[0.98]"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-claude-accent/50 text-claude-accent hover:bg-claude-accent/10 transition-colors active:scale-[0.98]"
               >
                 <SparklesIcon className="h-3 w-3" />
                 {i18nService.t('emailConnectivityAskAI')}
