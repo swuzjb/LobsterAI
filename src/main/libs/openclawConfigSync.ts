@@ -4,19 +4,19 @@ import path from 'path';
 
 import { buildScheduledTaskEnginePrompt } from '../../scheduledTask/enginePrompt';
 import { PlatformRegistry } from '../../shared/platform';
-import { OpenClawApi as OpenClawApiConst,OpenClawProviderId, ProviderName } from '../../shared/providers';
-import type { Agent,CoworkConfig, CoworkExecutionMode } from '../coworkStore';
-import type { DiscordOpenClawConfig, IMSettings,TelegramOpenClawConfig } from '../im/types';
-import type { DingTalkInstanceConfig, DingTalkOpenClawConfig, FeishuInstanceConfig, NeteaseBeeChanConfig,NimConfig, PopoOpenClawConfig, QQInstanceConfig, WecomOpenClawConfig, WeixinOpenClawConfig } from '../im/types';
-import { getAllServerModelMetadata,resolveAllEnabledProviderConfigs, resolveAllProviderApiKeys, resolveRawApiConfig } from './claudeSettings';
+import { OpenClawApi as OpenClawApiConst, OpenClawProviderId, ProviderName } from '../../shared/providers';
+import type { Agent, CoworkConfig, CoworkExecutionMode } from '../coworkStore';
+import type { DiscordOpenClawConfig, IMSettings, TelegramOpenClawConfig } from '../im/types';
+import type { DingTalkInstanceConfig, FeishuInstanceConfig, NeteaseBeeChanConfig, NimConfig, PopoOpenClawConfig, QQInstanceConfig, WecomOpenClawConfig, WeixinOpenClawConfig } from '../im/types';
+import { getAllServerModelMetadata, resolveAllEnabledProviderConfigs, resolveAllProviderApiKeys, resolveRawApiConfig } from './claudeSettings';
 import { getCoworkOpenAICompatProxyBaseURL } from './coworkOpenAICompatProxy';
 import type { McpToolManifestEntry } from './mcpServerManager';
 import {
   buildAgentEntry,
   buildManagedAgentEntries,
   parsePrimaryModelRef,
-  resolveQualifiedAgentModelRef,
   resolveManagedSessionModelTarget,
+  resolveQualifiedAgentModelRef,
 } from './openclawAgentModels';
 import { parseChannelSessionKey } from './openclawChannelSessionSync';
 import type { OpenClawEngineManager } from './openclawEngineManager';
@@ -857,8 +857,6 @@ export class OpenClawConfigSync {
     const hasDingTalkOpenClaw = dingTalkInstances.some(i => i.enabled && i.clientId);
 
     const feishuInstances = this.getFeishuInstances();
-    // Feishu now runs fully through OpenClaw plugin, handled separately below like Telegram
-    const hasFeishu = false; // Legacy in-line feishu channel disabled; OpenClaw plugin used instead
 
     const qqInstances = this.getQQInstances();
 
@@ -2022,8 +2020,6 @@ export class OpenClawConfigSync {
    * user sets up a model in the UI.
    */
   private writeMinimalConfig(configPath: string, _reason: string): OpenClawConfigSyncResult {
-    const preinstalledPluginIds = readPreinstalledPluginIds().filter((id) => isBundledPluginAvailable(id));
-
     const minimalConfig: Record<string, unknown> = {
       gateway: {
         mode: 'local',

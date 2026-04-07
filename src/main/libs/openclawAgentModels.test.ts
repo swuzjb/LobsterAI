@@ -4,8 +4,8 @@ import {
   buildAgentEntry,
   buildManagedAgentEntries,
   parsePrimaryModelRef,
-  resolveQualifiedAgentModelRef,
   resolveManagedSessionModelTarget,
+  resolveQualifiedAgentModelRef,
 } from './openclawAgentModels';
 
 describe('buildAgentEntry', () => {

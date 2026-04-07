@@ -2,10 +2,11 @@ import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { ChevronDownIcon, FolderIcon, PaperAirplaneIcon, StopIcon } from '@heroicons/react/24/solid';
 import React, { useCallback,useEffect, useRef, useState } from 'react';
 import { useDispatch,useSelector } from 'react-redux';
-import { agentService } from '../../services/agent';
-import { i18nService } from '../../services/i18n';
-import { configService } from '../../services/config';
+
 import { defaultConfig } from '../../config';
+import { agentService } from '../../services/agent';
+import { configService } from '../../services/config';
+import { i18nService } from '../../services/i18n';
 import { skillService } from '../../services/skill';
 import { RootState } from '../../store';
 import { selectDraftPrompts } from '../../store/selectors/coworkSelectors';
@@ -13,14 +14,14 @@ import { addDraftAttachment, clearDraftAttachments, type DraftAttachment, setDra
 import { setSkills, toggleActiveSkill } from '../../store/slices/skillSlice';
 import { CoworkImageAttachment } from '../../types/cowork';
 import { Skill } from '../../types/skill';
-import { getCompactFolderName } from '../../utils/path';
 import { toOpenClawModelRef } from '../../utils/openclawModelRef';
-import AttachmentCard from './AttachmentCard';
+import { getCompactFolderName } from '../../utils/path';
 import PaperClipIcon from '../icons/PaperClipIcon';
 import XMarkIcon from '../icons/XMarkIcon';
 import ModelSelector from '../ModelSelector';
 import { ActiveSkillBadge,SkillsButton } from '../skills';
 import { resolveAgentModelSelection } from './agentModelSelection';
+import AttachmentCard from './AttachmentCard';
 import FolderSelectorPopover from './FolderSelectorPopover';
 
 // CoworkAttachment is aliased from the Redux-persisted DraftAttachment type
@@ -253,6 +254,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   // Sync value from draft when sessionId changes
   useEffect(() => {
     setValue(draftPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey]); // intentionally omit draftPrompt to only trigger on session switch
 
   useEffect(() => {
@@ -327,7 +329,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     dispatch(setDraftPrompt({ sessionId: draftKey, draft: '' }));
     dispatch(clearDraftAttachments(draftKey));
     setImageVisionHint(false);
-  }, [value, isStreaming, disabled, onSubmit, activeSkillIds, skills, attachments, showFolderSelector, workingDirectory, dispatch]);
+  }, [value, isStreaming, disabled, onSubmit, activeSkillIds, skills, attachments, showFolderSelector, workingDirectory, dispatch, draftKey]);
 
   const handleSelectSkill = useCallback((skill: Skill) => {
     dispatch(toggleActiveSkill(skill.id));

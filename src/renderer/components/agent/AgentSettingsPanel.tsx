@@ -10,7 +10,7 @@ import { imService } from '../../services/im';
 import { RootState } from '../../store';
 import type { Model } from '../../store/slices/modelSlice';
 import type { Agent } from '../../types/agent';
-import type { IMGatewayConfig } from '../../types/im';
+import type { DingTalkInstanceConfig, DingTalkInstanceStatus, FeishuInstanceConfig, FeishuInstanceStatus, IMGatewayConfig, IMGatewayStatus, QQInstanceConfig, QQInstanceStatus } from '../../types/im';
 import { resolveOpenClawModelRef, toOpenClawModelRef } from '../../utils/openclawModelRef';
 import { getVisibleIMPlatforms } from '../../utils/regionFilter';
 import Modal from '../common/Modal';
@@ -20,8 +20,14 @@ import AgentSkillSelector from './AgentSkillSelector';
 import EmojiPicker from './EmojiPicker';
 
 type SettingsTab = 'basic' | 'skills' | 'im';
+type MultiInstancePlatform = 'dingtalk' | 'feishu' | 'qq';
+type MultiInstanceConfig = DingTalkInstanceConfig | FeishuInstanceConfig | QQInstanceConfig;
+type MultiInstanceStatus = DingTalkInstanceStatus | FeishuInstanceStatus | QQInstanceStatus;
 
-const MULTI_INSTANCE_PLATFORMS: Platform[] = ['dingtalk', 'feishu', 'qq'];
+const MULTI_INSTANCE_PLATFORMS: MultiInstancePlatform[] = ['dingtalk', 'feishu', 'qq'];
+
+const isMultiInstancePlatform = (platform: Platform): platform is MultiInstancePlatform =>
+  MULTI_INSTANCE_PLATFORMS.includes(platform as MultiInstancePlatform);
 
 interface AgentSettingsPanelProps {
   agentId: string | null;
@@ -197,16 +203,16 @@ const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ agentId, onClos
   };
 
   /** Check if a multi-instance platform has any enabled+connected instances */
-  const getConnectedInstances = (platform: Platform) => {
+  const getConnectedInstances = (platform: MultiInstancePlatform) => {
     if (!imConfig) return [];
-    const cfg = imConfig[platform] as any;
+    const cfg = imConfig[platform];
     const instances = cfg?.instances;
     if (!Array.isArray(instances)) return [];
-    const statusInstances = (imStatus as any)?.[platform]?.instances;
-    return instances.filter((inst: any) => {
+    const statusInstances = (imStatus as IMGatewayStatus | undefined)?.[platform]?.instances;
+    return instances.filter((inst: MultiInstanceConfig) => {
       if (!inst.enabled) return false;
       const instStatus = Array.isArray(statusInstances)
-        ? statusInstances.find((s: any) => s.instanceId === inst.instanceId)
+        ? statusInstances.find((s: MultiInstanceStatus) => s.instanceId === inst.instanceId)
         : null;
       return instStatus?.connected === true;
     });
@@ -214,10 +220,10 @@ const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ agentId, onClos
 
   const isPlatformConfigured = (platform: Platform): boolean => {
     if (!imConfig) return false;
-    if (MULTI_INSTANCE_PLATFORMS.includes(platform)) {
+    if (isMultiInstancePlatform(platform)) {
       return getConnectedInstances(platform).length > 0;
     }
-    return (imConfig[platform] as any)?.enabled === true;
+    return 'enabled' in imConfig[platform] && imConfig[platform].enabled === true;
   };
 
   /** Resolve agent name by id */
@@ -249,7 +255,7 @@ const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ agentId, onClos
     </div>
   );
 
-  const renderMultiInstancePlatform = (platform: Platform) => {
+  const renderMultiInstancePlatform = (platform: MultiInstancePlatform) => {
     const connectedInstances = getConnectedInstances(platform);
     const logo = PlatformRegistry.logo(platform);
     const bindings = imConfig?.settings?.platformAgentBindings || {};
@@ -293,7 +299,7 @@ const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ agentId, onClos
           </span>
         </div>
         {/* Instance list */}
-        {connectedInstances.map((inst: any, idx: number) => {
+        {connectedInstances.map((inst: MultiInstanceConfig, idx: number) => {
           const bindingKey = `${platform}:${inst.instanceId}`;
           const isBound = boundKeys.has(bindingKey);
           const otherAgentId = bindings[bindingKey];
@@ -502,7 +508,7 @@ const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ agentId, onClos
                 {PlatformRegistry.platforms
                   .filter((platform) => (getVisibleIMPlatforms(i18nService.getLanguage()) as readonly string[]).includes(platform))
                   .map((platform) => {
-                    if (MULTI_INSTANCE_PLATFORMS.includes(platform)) {
+                    if (isMultiInstancePlatform(platform)) {
                       return renderMultiInstancePlatform(platform);
                     }
                     return renderSingleInstancePlatform(platform);
