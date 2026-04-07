@@ -981,6 +981,18 @@ export class OpenClawEngineManager extends EventEmitter {
   }
 
   private findGatewayClientEntryFromDistRoot(distRoot: string): string | null {
+    // v2026.4.5+: GatewayClient is exported via the plugin-sdk public subpath
+    // (openclaw/plugin-sdk/gateway-runtime). The class is no longer in a
+    // standalone client-*.js chunk — it was merged into a shared chunk with
+    // minified export names (e.g. `n, r, t`), which breaks duck-type detection
+    // in loadGatewayClientCtor(). The plugin-sdk barrel re-exports the named
+    // `GatewayClient` symbol, so we prefer this stable entry point.
+    const pluginSdkGatewayRuntime = path.join(distRoot, 'plugin-sdk', 'gateway-runtime.js');
+    if (fs.existsSync(pluginSdkGatewayRuntime)) {
+      return pluginSdkGatewayRuntime;
+    }
+
+    // Pre-v2026.4.5: GatewayClient lived in a dedicated file under dist/.
     const gatewayClient = path.join(distRoot, 'gateway', 'client.js');
     if (fs.existsSync(gatewayClient)) {
       return gatewayClient;
@@ -991,6 +1003,9 @@ export class OpenClawEngineManager extends EventEmitter {
       return directClient;
     }
 
+    // Last resort: match any client-*.js file in dist root. Note that since
+    // v2026.4.5 this may resolve to an unrelated RPC utilities chunk, so this
+    // fallback is only meaningful for older versions.
     try {
       if (!fs.existsSync(distRoot) || !fs.statSync(distRoot).isDirectory()) {
         return null;

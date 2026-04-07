@@ -38,7 +38,11 @@ import { t } from '../../i18n';
 const OPENCLAW_GATEWAY_TOOL_EVENTS_CAP = 'tool-events';
 const BRIDGE_MAX_MESSAGES = 20;
 const BRIDGE_MAX_MESSAGE_CHARS = 1200;
-const GATEWAY_READY_TIMEOUT_MS = 15_000;
+// v2026.4.5 introduced a connect.challenge pre-auth step that can delay the
+// initial handshake when the gateway is busy loading plugins at startup.
+// The GatewayClient auto-reconnects and typically succeeds on the second
+// attempt (~15-20s total), so 30s gives enough headroom.
+const GATEWAY_READY_TIMEOUT_MS = 30_000;
 const FINAL_HISTORY_SYNC_LIMIT = 50;
 const CHANNEL_SESSION_DISCOVERY_LIMIT = 200;
 
@@ -1479,16 +1483,30 @@ export class OpenClawRuntimeAdapter extends EventEmitter implements CoworkRuntim
       },
       onConnectError: (error: Error) => {
         console.error('[ChannelSync] GatewayClient: onConnectError —', error.message);
-        settleReject(error);
+        // Don't reject on transient connect errors — the GatewayClient has
+        // built-in reconnection logic and will retry automatically.  Let the
+        // outer waitWithTimeout be the single authority on giving up.  Only
+        // reject immediately for definitive auth failures that won't resolve
+        // on retry (e.g. invalid token, access denied).
+        const msg = error.message.toLowerCase();
+        const isAuthFailure = msg.includes('auth') || msg.includes('denied') || msg.includes('forbidden');
+        if (isAuthFailure) {
+          settleReject(error);
+        } else {
+          console.log('[ChannelSync] GatewayClient: transient connect error, waiting for auto-reconnect...');
+        }
       },
       onClose: (_code: number, reason: string) => {
         console.log('[ChannelSync] GatewayClient: onClose — code:', _code, 'reason:', reason, 'settled:', settled);
         if (!settled) {
-          // Handshake never completed — clean up the pending client so the next
-          // ensureGatewayClientReady call creates a fresh one instead of reusing
-          // this broken instance forever.
-          this.pendingGatewayClient = null;
-          settleReject(new Error(reason || 'OpenClaw gateway disconnected before handshake'));
+          // v2026.4.5+: The initial handshake may fail due to the gateway
+          // being busy with plugin loading (connect.challenge timeout on the
+          // server side).  The GatewayClient internally reconnects and
+          // typically succeeds on the next attempt.  Don't reject the promise
+          // or discard the client here — let waitWithTimeout handle the
+          // overall deadline.  The onHelloOk callback will settle the promise
+          // when the reconnection succeeds.
+          console.log('[ChannelSync] GatewayClient: connection closed before handshake, waiting for auto-reconnect...');
           return;
         }
 
