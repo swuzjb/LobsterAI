@@ -18,8 +18,15 @@ import { apiService } from './services/api';
 import { themeService } from './services/theme';
 import { coworkService } from './services/cowork';
 import { authService } from './services/auth';
+import { onboardingService } from './services/onboarding';
 import { scheduledTaskService } from './services/scheduledTask';
-import { checkForAppUpdate, type AppUpdateInfo, type AppUpdateDownloadProgress, UPDATE_POLL_INTERVAL_MS, UPDATE_HEARTBEAT_INTERVAL_MS } from './services/appUpdate';
+import {
+  checkForAppUpdate,
+  type AppUpdateInfo,
+  type AppUpdateDownloadProgress,
+  UPDATE_POLL_INTERVAL_MS,
+  UPDATE_HEARTBEAT_INTERVAL_MS,
+} from './services/appUpdate';
 import { defaultConfig, getProviderDisplayName } from './config';
 import { setAvailableModels, setSelectedModel } from './store/slices/modelSlice';
 import { clearSelection } from './store/slices/quickActionSlice';
@@ -36,7 +43,9 @@ import PrivacyDialog from './components/PrivacyDialog';
 const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsOptions, setSettingsOptions] = useState<SettingsOpenOptions>({});
-  const [mainView, setMainView] = useState<'cowork' | 'skills' | 'scheduledTasks' | 'mcp' | 'agents'>('cowork');
+  const [mainView, setMainView] = useState<
+    'cowork' | 'skills' | 'scheduledTasks' | 'mcp' | 'agents'
+  >('cowork');
   const [isInitialized, setIsInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -44,7 +53,9 @@ const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<AppUpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [updateModalState, setUpdateModalState] = useState<'info' | 'downloading' | 'installing' | 'error'>('info');
+  const [updateModalState, setUpdateModalState] = useState<
+    'info' | 'downloading' | 'installing' | 'error'
+  >('info');
   const [downloadProgress, setDownloadProgress] = useState<AppUpdateDownloadProgress | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [privacyAgreed, setPrivacyAgreed] = useState<boolean | null>(null);
@@ -69,18 +80,18 @@ const App: React.FC = () => {
         }, timeoutMs);
 
         promise.then(
-          (value) => {
+          value => {
             window.clearTimeout(timer);
             resolve(value);
           },
-          (error) => {
+          error => {
             window.clearTimeout(timer);
             reject(error);
-          }
+          },
         );
       });
     },
-    []
+    [],
   );
 
   // 初始化应用
@@ -125,19 +136,27 @@ const App: React.FC = () => {
         apiService.setConfig(apiConfig);
 
         // 从 providers 配置中加载可用模型列表到 Redux
-        const providerModels: { id: string; name: string; provider?: string; providerKey?: string; supportsImage?: boolean }[] = [];
+        const providerModels: {
+          id: string;
+          name: string;
+          provider?: string;
+          providerKey?: string;
+          supportsImage?: boolean;
+        }[] = [];
         if (config.providers) {
           Object.entries(config.providers).forEach(([providerName, providerConfig]) => {
             if (providerConfig.enabled && providerConfig.models) {
-              providerConfig.models.forEach((model: { id: string; name: string; supportsImage?: boolean }) => {
-                providerModels.push({
-                  id: model.id,
-                  name: model.name,
-                  provider: getProviderDisplayName(providerName, providerConfig),
-                  providerKey: providerName,
-                  supportsImage: model.supportsImage ?? false,
-                });
-              });
+              providerConfig.models.forEach(
+                (model: { id: string; name: string; supportsImage?: boolean }) => {
+                  providerModels.push({
+                    id: model.id,
+                    name: model.name,
+                    provider: getProviderDisplayName(providerName, providerConfig),
+                    providerKey: providerName,
+                    supportsImage: model.supportsImage ?? false,
+                  });
+                },
+              );
             }
           });
         }
@@ -153,10 +172,13 @@ const App: React.FC = () => {
           // Search all available models (including server models loaded by authService)
           // so that a previously selected server model is correctly restored.
           const allModels = store.getState().model.availableModels;
-          const preferredModel = allModels.find(
-            model => model.id === config.model.defaultModel
-              && (!config.model.defaultModelProvider || model.providerKey === config.model.defaultModelProvider)
-          ) ?? allModels[0];
+          const preferredModel =
+            allModels.find(
+              model =>
+                model.id === config.model.defaultModel &&
+                (!config.model.defaultModelProvider ||
+                  model.providerKey === config.model.defaultModelProvider),
+            ) ?? allModels[0];
           dispatch(setSelectedModel(preferredModel));
         }
 
@@ -164,15 +186,18 @@ const App: React.FC = () => {
         const agreed = await window.electron.store.get('privacy_agreed');
         setPrivacyAgreed(agreed === true);
 
+        // 初始化新手引导服务
+        await onboardingService.init();
+
         setIsInitialized(true);
         console.info('[App] initializeApp: shell ready');
 
-
         // 初始化定时任务服务，但不阻塞首屏
-        void waitWithTimeout(scheduledTaskService.init(), 5000, 'scheduledTaskService.init').catch((error) => {
-          console.error('[App] initializeApp: scheduledTaskService.init failed:', error);
-        });
-
+        void waitWithTimeout(scheduledTaskService.init(), 5000, 'scheduledTaskService.init').catch(
+          error => {
+            console.error('[App] initializeApp: scheduledTaskService.init failed:', error);
+          },
+        );
       } catch (error) {
         console.error('Failed to initialize app:', error);
         setInitError(i18nService.t('initializationError'));
@@ -183,9 +208,20 @@ const App: React.FC = () => {
     void initializeApp();
   }, [dispatch, waitWithTimeout]);
 
+  // Trigger welcome tour for first-time users
+  useEffect(() => {
+    if (!isInitialized || privacyAgreed !== true || !onboardingService.isReady()) return;
+    if (onboardingService.isTourCompleted('welcome')) return;
+    // Delay slightly to ensure DOM is fully rendered
+    const timer = window.setTimeout(() => {
+      onboardingService.startWelcomeTour();
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [isInitialized, privacyAgreed]);
+
   useEffect(() => {
     const unsubscribe = i18nService.subscribe(() => {
-      forceLanguageRefresh((prev) => prev + 1);
+      forceLanguageRefresh(prev => prev + 1);
     });
     return () => {
       unsubscribe();
@@ -239,8 +275,8 @@ const App: React.FC = () => {
     if (!isInitialized || !selectedModel?.id) return;
     const config = configService.getConfig();
     if (
-      config.model.defaultModel === selectedModel.id
-      && (config.model.defaultModelProvider ?? '') === (selectedModel.providerKey ?? '')
+      config.model.defaultModel === selectedModel.id &&
+      (config.model.defaultModelProvider ?? '') === (selectedModel.providerKey ?? '')
     ) {
       return;
     }
@@ -282,7 +318,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleToggleSidebar = useCallback(() => {
-    setIsSidebarCollapsed((prev) => !prev);
+    setIsSidebarCollapsed(prev => !prev);
   }, []);
 
   const handleNewChat = useCallback(() => {
@@ -291,9 +327,11 @@ const App: React.FC = () => {
     dispatch(clearSelection());
     setMainView('cowork');
     window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('cowork:focus-input', {
-        detail: { clear: shouldClearInput },
-      }));
+      window.dispatchEvent(
+        new CustomEvent('cowork:focus-input', {
+          detail: { clear: shouldClearInput },
+        }),
+      );
     }, 0);
   }, [dispatch, mainView, currentSessionId]);
 
@@ -372,7 +410,7 @@ const App: React.FC = () => {
     setDownloadProgress(null);
     setUpdateError(null);
 
-    const unsubscribe = window.electron.appUpdate.onDownloadProgress((progress) => {
+    const unsubscribe = window.electron.appUpdate.onDownloadProgress(progress => {
       setDownloadProgress(progress);
     });
 
@@ -432,10 +470,13 @@ const App: React.FC = () => {
     window.electron.window.close();
   }, []);
 
-  const handlePermissionResponse = useCallback(async (result: CoworkPermissionResult) => {
-    if (!pendingPermission) return;
-    await coworkService.respondToPermission(pendingPermission.requestId, result);
-  }, [pendingPermission]);
+  const handlePermissionResponse = useCallback(
+    async (result: CoworkPermissionResult) => {
+      if (!pendingPermission) return;
+      await coworkService.respondToPermission(pendingPermission.requestId, result);
+    },
+    [pendingPermission],
+  );
 
   const handleCloseSettings = () => {
     setShowSettings(false);
@@ -446,18 +487,26 @@ const App: React.FC = () => {
     });
 
     if (config.providers) {
-      const allModels: { id: string; name: string; provider?: string; providerKey?: string; supportsImage?: boolean }[] = [];
+      const allModels: {
+        id: string;
+        name: string;
+        provider?: string;
+        providerKey?: string;
+        supportsImage?: boolean;
+      }[] = [];
       Object.entries(config.providers).forEach(([providerName, providerConfig]) => {
         if (providerConfig.enabled && providerConfig.models) {
-          providerConfig.models.forEach((model: { id: string; name: string; supportsImage?: boolean }) => {
-            allModels.push({
-              id: model.id,
-              name: model.name,
-              provider: getProviderDisplayName(providerName, providerConfig),
-              providerKey: providerName,
-              supportsImage: model.supportsImage ?? false,
-            });
-          });
+          providerConfig.models.forEach(
+            (model: { id: string; name: string; supportsImage?: boolean }) => {
+              allModels.push({
+                id: model.id,
+                name: model.name,
+                provider: getProviderDisplayName(providerName, providerConfig),
+                providerKey: providerName,
+                supportsImage: model.supportsImage ?? false,
+              });
+            },
+          );
         }
       });
       if (allModels.length > 0) {
@@ -600,19 +649,13 @@ const App: React.FC = () => {
 
     // 其他情况使用原有的权限模态框
     return (
-      <CoworkPermissionModal
-        permission={pendingPermission}
-        onRespond={handlePermissionResponse}
-      />
+      <CoworkPermissionModal permission={pendingPermission} onRespond={handlePermissionResponse} />
     );
   }, [pendingPermission, handlePermissionResponse]);
 
   const isOverlayActive = showSettings || showUpdateModal || pendingPermissions.length > 0;
   const updateBadge = updateInfo ? (
-    <AppUpdateBadge
-      latestVersion={updateInfo.latestVersion}
-      onClick={handleOpenUpdateModal}
-    />
+    <AppUpdateBadge latestVersion={updateInfo.latestVersion} onClick={handleOpenUpdateModal} />
   ) : null;
   const windowsStandaloneTitleBar = isWindows ? (
     <div className="draggable relative h-9 shrink-0 bg-surface-raised">
@@ -672,9 +715,7 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-surface-raised">
-      {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-      )}
+      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar
           onShowLogin={handleShowLogin}
@@ -770,13 +811,10 @@ const App: React.FC = () => {
       )}
       {permissionModal}
       {privacyAgreed === false && (
-        <PrivacyDialog
-          onAccept={handlePrivacyAccept}
-          onReject={handlePrivacyReject}
-        />
+        <PrivacyDialog onAccept={handlePrivacyAccept} onReject={handlePrivacyReject} />
       )}
     </div>
   );
 };
 
-export default App; 
+export default App;
