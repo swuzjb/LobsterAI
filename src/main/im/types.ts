@@ -396,6 +396,7 @@ export interface IMGatewayConfig {
   wecom: WecomOpenClawConfig;
   popo: PopoOpenClawConfig;
   weixin: WeixinOpenClawConfig;
+  email?: EmailMultiInstanceConfig; // Optional: new in this version
   settings: IMSettings;
 }
 
@@ -417,6 +418,7 @@ export interface IMGatewayStatus {
   wecom: WecomGatewayStatus;
   popo: PopoGatewayStatus;
   weixin: WeixinGatewayStatus;
+  email?: EmailMultiInstanceStatus; // Optional: new in this version
 }
 
 // ==================== Media Attachment Types ====================
@@ -697,6 +699,7 @@ export const DEFAULT_IM_CONFIG: IMGatewayConfig = {
   wecom: DEFAULT_WECOM_CONFIG,
   popo: DEFAULT_POPO_CONFIG,
   weixin: DEFAULT_WEIXIN_CONFIG,
+  email: DEFAULT_EMAIL_MULTI_INSTANCE_CONFIG,
   settings: DEFAULT_IM_SETTINGS,
 };
 
@@ -796,6 +799,7 @@ export const DEFAULT_IM_STATUS: IMGatewayStatus = {
   wecom: DEFAULT_WECOM_STATUS,
   popo: DEFAULT_POPO_STATUS,
   weixin: DEFAULT_WEIXIN_STATUS,
+  email: { instances: [] },
 };
 
 // ==================== Media Marker Types ====================
