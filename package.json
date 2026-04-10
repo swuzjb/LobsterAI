@@ -44,9 +44,9 @@
         "optional": true
       },
       {
-        "id": "openclaw-nim",
-        "npm": "openclaw-nim",
-        "version": "0.3.1"
+        "id": "openclaw-nim-channel",
+        "npm": "@nimsuite/openclaw-nim-channel",
+        "version": "1.0.3"
       },
       {
         "id": "openclaw-netease-bee",
