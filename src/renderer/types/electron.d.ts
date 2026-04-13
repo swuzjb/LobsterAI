@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface ApiResponse {
   ok: boolean;
   status: number;
@@ -59,6 +60,8 @@ interface CoworkConfig {
   memoryLlmJudgeEnabled: boolean;
   memoryGuardLevel: 'strict' | 'standard' | 'relaxed';
   memoryUserMemoriesMaxItems: number;
+  skipMissedJobs: boolean;
+  openClawSessionPolicy: OpenClawSessionPolicyConfig;
 }
 
 type CoworkConfigUpdate = Partial<Pick<
@@ -71,6 +74,7 @@ type CoworkConfigUpdate = Partial<Pick<
   | 'memoryLlmJudgeEnabled'
   | 'memoryGuardLevel'
   | 'memoryUserMemoriesMaxItems'
+  | 'skipMissedJobs'
 >>;
 
 interface CoworkUserMemoryEntry {
@@ -118,18 +122,15 @@ interface OpenClawEngineStatus {
   canRetry: boolean;
 }
 
+interface OpenClawSessionPolicyConfig {
+  keepAlive: '1d' | '7d' | '30d' | '365d';
+}
+
 interface AppUpdateDownloadProgress {
   received: number;
   total: number | undefined;
   percent: number | undefined;
   speed: number | undefined;
-}
-
-interface QwenOAuthToken {
-  access: string;
-  refresh: string;
-  expires: number;
-  resourceUrl?: string;
 }
 
 interface WindowState {
@@ -223,8 +224,9 @@ interface McpMarketplaceData {
   servers: McpMarketplaceServer[];
 }
 
-import type { Agent, PresetAgent } from './agent';
 import type { Platform } from '@shared/platform';
+
+import type { Agent, PresetAgent } from './agent';
 
 interface CreditItem {
   type: 'subscription' | 'boost' | 'free';
@@ -319,6 +321,10 @@ interface IElectronAPI {
       retryInstall: () => Promise<{ success: boolean; status?: OpenClawEngineStatus; error?: string }>;
       restartGateway: () => Promise<{ success: boolean; status?: OpenClawEngineStatus; error?: string }>;
       onProgress: (callback: (status: OpenClawEngineStatus) => void) => () => void;
+    };
+    sessionPolicy: {
+      get: () => Promise<{ success: boolean; config?: OpenClawSessionPolicyConfig; error?: string }>;
+      set: (config: OpenClawSessionPolicyConfig) => Promise<{ success: boolean; config?: OpenClawSessionPolicyConfig; error?: string }>;
     };
   };
   ipcRenderer: {
@@ -527,11 +533,7 @@ interface IElectronAPI {
     getAccessToken: () => Promise<string | null>;
     onCallback: (callback: (data: { code: string }) => void) => () => void;
   };
-  qwen: {
-    oauthLogin: () => Promise<{ success: boolean; data?: QwenOAuthToken; error?: string }>;
-    oauthRefresh: (refreshToken: string) => Promise<{ success: boolean; data?: QwenOAuthToken; error?: string }>;
-    onOAuthProgress: (callback: (message: string) => void) => () => void;
-  },
+  qwen: Record<string, never>;
   feishu: {
     install: {
       qrcode: (isLark: boolean) => Promise<{
@@ -634,6 +636,17 @@ interface FeishuOpenClawGroupConfig {
   systemPrompt?: string;
 }
 
+interface FeishuOpenClawFooterConfig {
+  status?: boolean;
+  elapsed?: boolean;
+}
+
+interface FeishuOpenClawBlockStreamingCoalesceConfig {
+  minChars?: number;
+  maxChars?: number;
+  idleMs?: number;
+}
+
 interface FeishuOpenClawConfig {
   enabled: boolean;
   appId: string;
@@ -645,7 +658,11 @@ interface FeishuOpenClawConfig {
   groupAllowFrom: string[];
   groups: Record<string, FeishuOpenClawGroupConfig>;
   historyLimit: number;
+  streaming: boolean;
   replyMode: 'auto' | 'static' | 'streaming';
+  blockStreaming: boolean;
+  footer: FeishuOpenClawFooterConfig;
+  blockStreamingCoalesce?: FeishuOpenClawBlockStreamingCoalesceConfig;
   mediaMaxMb: number;
   debug: boolean;
 }
