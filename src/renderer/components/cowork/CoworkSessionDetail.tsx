@@ -58,6 +58,8 @@ interface CoworkSessionDetailProps {
   onToggleSidebar?: () => void;
   onNewChat?: () => void;
   updateBadge?: React.ReactNode;
+  pendingScrollToMessageId?: string | null;
+  onClearPendingScroll?: () => void;
 }
 
 const AUTO_SCROLL_THRESHOLD = 120;
@@ -1673,6 +1675,8 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   onToggleSidebar,
   onNewChat,
   updateBadge,
+  pendingScrollToMessageId,
+  onClearPendingScroll,
 }) => {
   const dispatch = useDispatch();
   const isMac = window.electron.platform === 'darwin';
@@ -2446,6 +2450,24 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
       setCurrentRailIndex(lastRail);
     }
   }, [messagesLength, lastMessageContent, isStreaming, shouldAutoScroll, turns.length]);
+
+  // Scroll to a specific message when navigating from bookmarks
+  useEffect(() => {
+    if (!pendingScrollToMessageId || !currentSession?.messages?.length) return;
+
+    const timer = setTimeout(() => {
+      const el = document.querySelector(`[data-message-id="${pendingScrollToMessageId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('bookmark-flash');
+        setTimeout(() => el.classList.remove('bookmark-flash'), 1500);
+      }
+      onClearPendingScroll?.();
+    }, 300);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingScrollToMessageId, currentSession?.id]);
 
   if (!currentSession) {
     return null;

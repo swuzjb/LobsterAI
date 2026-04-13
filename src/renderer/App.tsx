@@ -14,6 +14,7 @@ import { SkillsView } from './components/skills';
 import { ScheduledTasksView } from './components/scheduledTasks';
 import { McpView } from './components/mcp';
 import AgentsView from './components/agent/AgentsView';
+import BookmarksView from './components/BookmarksView';
 import CoworkPermissionModal from './components/cowork/CoworkPermissionModal';
 import CoworkQuestionWizard from './components/cowork/CoworkQuestionWizard';
 import EngineStartupOverlay from './components/cowork/EngineStartupOverlay';
@@ -48,13 +49,14 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsOptions, setSettingsOptions] = useState<SettingsOpenOptions>({});
   const [mainView, setMainView] = useState<
-    'cowork' | 'skills' | 'scheduledTasks' | 'mcp' | 'agents'
+    'cowork' | 'skills' | 'scheduledTasks' | 'mcp' | 'agents' | 'bookmarks'
   >('cowork');
   const [isInitialized, setIsInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [, forceLanguageRefresh] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [pendingScrollToMessageId, setPendingScrollToMessageId] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<AppUpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateModalState, setUpdateModalState] = useState<
@@ -309,6 +311,16 @@ const App: React.FC = () => {
 
   const handleShowAgents = useCallback(() => {
     setMainView('agents');
+  }, []);
+
+  const handleShowBookmarks = useCallback(() => {
+    setMainView('bookmarks');
+  }, []);
+
+  const handleJumpToMessage = useCallback((sessionId: string, messageId: string) => {
+    coworkService.loadSession(sessionId);
+    setPendingScrollToMessageId(messageId);
+    setMainView('cowork');
   }, []);
 
   const handleToggleSidebar = useCallback(() => {
@@ -720,6 +732,7 @@ const App: React.FC = () => {
           onShowScheduledTasks={handleShowScheduledTasks}
           onShowMcp={handleShowMcp}
           onShowAgents={handleShowAgents}
+          onShowBookmarks={handleShowBookmarks}
           onNewChat={handleNewChat}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={handleToggleSidebar}
@@ -760,6 +773,12 @@ const App: React.FC = () => {
                 onShowCowork={handleShowCowork}
                 updateBadge={isSidebarCollapsed ? updateBadge : null}
               />
+            ) : mainView === 'bookmarks' ? (
+              <BookmarksView
+                onJumpToMessage={handleJumpToMessage}
+                isSidebarCollapsed={isSidebarCollapsed}
+                onToggleSidebar={() => setIsSidebarCollapsed(false)}
+              />
             ) : (
               <CoworkView
                 onRequestAppSettings={handleShowSettings}
@@ -768,6 +787,8 @@ const App: React.FC = () => {
                 onToggleSidebar={handleToggleSidebar}
                 onNewChat={handleNewChat}
                 updateBadge={isSidebarCollapsed ? updateBadge : null}
+                pendingScrollToMessageId={pendingScrollToMessageId}
+                onClearPendingScroll={() => setPendingScrollToMessageId(null)}
               />
             )}
           </div>
