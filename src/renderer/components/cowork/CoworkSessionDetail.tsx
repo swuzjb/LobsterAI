@@ -2455,16 +2455,53 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   useEffect(() => {
     if (!pendingScrollToMessageId || !currentSession?.messages?.length) return;
 
-    const timer = setTimeout(() => {
-      const el = document.querySelector(`[data-message-id="${pendingScrollToMessageId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('bookmark-flash');
-        setTimeout(() => el.classList.remove('bookmark-flash'), 1500);
+    // Find which turn index contains the target message
+    let targetTurnIndex = -1;
+    for (let i = 0; i < turns.length; i++) {
+      const turn = turns[i];
+      if (turn.userMessage?.id === pendingScrollToMessageId) {
+        targetTurnIndex = i;
+        break;
       }
-      onClearPendingScroll?.();
-    }, 300);
+      if (
+        turn.assistantItems.some(
+          item => item.type !== 'tool_group' && item.message?.id === pendingScrollToMessageId,
+        )
+      ) {
+        targetTurnIndex = i;
+        break;
+      }
+    }
 
+    if (targetTurnIndex === -1) {
+      onClearPendingScroll?.();
+      return;
+    }
+
+    // Phase 1: Scroll to the turn container (always in DOM even when lazy-rendered).
+    // This triggers IntersectionObserver which renders the actual content.
+    const turnEl = document.querySelector(`[data-turn-index="${targetTurnIndex}"]`);
+    if (turnEl) {
+      turnEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+    }
+
+    // Phase 2: After lazy render fires, find the exact message element and highlight it.
+    const attemptScroll = (retries: number) => {
+      const msgEl = document.querySelector(`[data-message-id="${pendingScrollToMessageId}"]`);
+      if (msgEl) {
+        msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        msgEl.classList.add('bookmark-flash');
+        setTimeout(() => msgEl.classList.remove('bookmark-flash'), 1500);
+        onClearPendingScroll?.();
+      } else if (retries > 0) {
+        setTimeout(() => attemptScroll(retries - 1), 200);
+      } else {
+        onClearPendingScroll?.();
+      }
+    };
+
+    // Give IntersectionObserver + React render time to fire
+    const timer = setTimeout(() => attemptScroll(5), 150);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingScrollToMessageId, currentSession?.id]);
