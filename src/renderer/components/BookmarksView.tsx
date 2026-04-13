@@ -27,11 +27,13 @@ const BookmarkItem: React.FC<{
   onRemove: (bookmarkId: string) => void;
 }> = React.memo(({ bookmark, sessionExists, onJump, onRemove }) => {
   const [isHovered, setIsHovered] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(false);
   const isUser = bookmark.messageType === 'user';
   const badgeColor = isUser ? 'text-blue-500 bg-blue-500/10' : 'text-purple-500 bg-purple-500/10';
   const borderColor = isUser ? 'border-l-blue-500' : 'border-l-purple-500';
 
   const lines = bookmark.content.split('\n');
+  const canExpand = lines.length > 5 || bookmark.content.length > 300;
   const truncated = lines.length > 5 ? lines.slice(0, 5).join('\n') + '...' : bookmark.content;
 
   return (
@@ -48,9 +50,20 @@ const BookmarkItem: React.FC<{
           {bookmark.sessionTitle} · {formatRelativeTime(bookmark.createdAt)}
         </span>
       </div>
-      <div className="text-sm text-foreground whitespace-pre-wrap break-words line-clamp-5">
-        {truncated}
+      <div
+        className={`text-sm text-foreground whitespace-pre-wrap break-words ${canExpand ? 'cursor-pointer' : ''} ${isExpanded ? '' : 'line-clamp-5'}`}
+        onClick={() => canExpand && setIsExpanded(!isExpanded)}
+      >
+        {isExpanded ? bookmark.content : truncated}
       </div>
+      {canExpand && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-xs text-primary hover:text-primary/80 mt-1 transition-colors"
+        >
+          {isExpanded ? i18nService.t('collapse') : i18nService.t('expand')}
+        </button>
+      )}
       <div className="flex items-center justify-end gap-2 mt-2">
         <button
           onClick={() => onRemove(bookmark.id)}
