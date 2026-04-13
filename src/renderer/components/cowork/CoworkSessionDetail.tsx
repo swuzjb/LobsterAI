@@ -1740,7 +1740,10 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   }, [isRenaming, currentSession?.title]);
 
   useEffect(() => {
-    setShouldAutoScroll(true);
+    // Don't auto-scroll to bottom when navigating from bookmarks
+    if (!pendingScrollToMessageId) {
+      setShouldAutoScroll(true);
+    }
   }, [currentSession?.id]);
 
   // Focus rename input when entering rename mode
@@ -2454,6 +2457,9 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   // Scroll to a specific message when navigating from bookmarks
   useEffect(() => {
     if (!pendingScrollToMessageId || !currentSession?.messages?.length) return;
+
+    // Prevent auto-scroll from fighting with bookmark navigation
+    setShouldAutoScroll(false);
 
     // Find which turn index contains the target message
     let targetTurnIndex = -1;
