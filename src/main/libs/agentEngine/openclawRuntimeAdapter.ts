@@ -2201,6 +2201,33 @@ export class OpenClawRuntimeAdapter extends EventEmitter implements CoworkRuntim
         void this.completeChannelTurnFallback(sessionId, turn);
       }, FALLBACK_DELAY_MS);
     }
+
+    if (phase === 'error') {
+      // Deferred error fallback: the gateway should also send a `chat state=error`
+      // event that triggers handleChatError().  But after the OpenClaw upgrade, this
+      // event may not arrive reliably — similar to the phase=end / chat final gap.
+      // Wait a short window for handleChatError() to run first; if the turn is still
+      // active after that, surface the error ourselves.
+      const errorMessage = typeof data.error === 'string' ? data.error.trim() : 'OpenClaw run failed';
+      const ERROR_FALLBACK_DELAY_MS = 2000;
+      setTimeout(() => {
+        const turn = this.activeTurns.get(sessionId);
+        if (!turn) return; // Already handled by handleChatError
+        console.log('[OpenClawRuntime] agent lifecycle error fallback: surfacing error that missed chat error event, sessionId:', sessionId, 'error:', errorMessage);
+        const erroredSessionKey = turn.sessionKey;
+        this.store.updateSession(sessionId, { status: 'error' });
+        const errorMsg = this.store.addMessage(sessionId, {
+          type: 'system',
+          content: errorMessage,
+          metadata: { error: errorMessage },
+        });
+        this.emit('message', sessionId, errorMsg);
+        this.emit('error', sessionId, errorMessage);
+        this.cleanupSessionTurn(sessionId);
+        this.rejectTurn(sessionId, new Error(errorMessage));
+        void this.reconcileWithHistory(sessionId, erroredSessionKey);
+      }, ERROR_FALLBACK_DELAY_MS);
+    }
   }
 
   /**
