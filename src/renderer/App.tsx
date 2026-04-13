@@ -317,10 +317,10 @@ const App: React.FC = () => {
     setMainView('bookmarks');
   }, []);
 
-  const handleJumpToMessage = useCallback((sessionId: string, messageId: string) => {
-    coworkService.loadSession(sessionId);
-    setPendingScrollToMessageId(messageId);
+  const handleJumpToMessage = useCallback(async (sessionId: string, messageId: string) => {
     setMainView('cowork');
+    await coworkService.loadSession(sessionId);
+    setPendingScrollToMessageId(messageId);
   }, []);
 
   const handleToggleSidebar = useCallback(() => {

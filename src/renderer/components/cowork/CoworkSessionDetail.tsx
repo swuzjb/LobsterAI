@@ -1690,11 +1690,15 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const promptInputRef = useRef<CoworkPromptInputRef>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const isBookmarkScrollingRef = useRef(false);
 
   // Clear lazy-render height cache when session changes
   const sessionId = currentSession?.id;
   useEffect(() => {
-    clearHeightCache();
+    // Skip clearing when navigating from bookmarks — cached heights keep layout stable
+    if (!pendingScrollToMessageId) {
+      clearHeightCache();
+    }
   }, [sessionId]);
 
   // Rail navigation states
@@ -1741,10 +1745,12 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
   useEffect(() => {
     // Don't auto-scroll to bottom when navigating from bookmarks
-    if (!pendingScrollToMessageId) {
+    if (pendingScrollToMessageId) {
+      setShouldAutoScroll(false);
+    } else {
       setShouldAutoScroll(true);
     }
-  }, [currentSession?.id]);
+  }, [currentSession?.id, pendingScrollToMessageId]);
 
   // Focus rename input when entering rename mode
   useEffect(() => {
@@ -2212,6 +2218,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   };
 
   const handleMessagesScroll = useCallback(() => {
+    if (isBookmarkScrollingRef.current) return; // Suppress during bookmark navigation
     const container = scrollContainerRef.current;
     if (!container) return;
     const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
@@ -2436,7 +2443,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
   // Auto scroll to bottom when new messages arrive or content updates (streaming)
   useEffect(() => {
-    if (!shouldAutoScroll) {
+    if (!shouldAutoScroll || pendingScrollToMessageId) {
       return;
     }
     const container = scrollContainerRef.current;
@@ -2458,8 +2465,9 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   useEffect(() => {
     if (!pendingScrollToMessageId || !currentSession?.messages?.length) return;
 
-    // Prevent auto-scroll from fighting with bookmark navigation
+    // Prevent auto-scroll and scroll handler from fighting with bookmark navigation
     setShouldAutoScroll(false);
+    isBookmarkScrollingRef.current = true;
 
     // Find which turn index contains the target message
     let targetTurnIndex = -1;
@@ -2480,6 +2488,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     }
 
     if (targetTurnIndex === -1) {
+      isBookmarkScrollingRef.current = false;
       onClearPendingScroll?.();
       return;
     }
@@ -2495,20 +2504,34 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     const attemptScroll = (retries: number) => {
       const msgEl = document.querySelector(`[data-message-id="${pendingScrollToMessageId}"]`);
       if (msgEl) {
-        msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        msgEl.classList.add('bookmark-flash');
-        setTimeout(() => msgEl.classList.remove('bookmark-flash'), 1500);
-        onClearPendingScroll?.();
+        // Use 'auto' to avoid prolonged scroll events fighting with other effects
+        msgEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+        // Double-RAF to wait for layout stabilization after lazy renders
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            msgEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+            msgEl.classList.add('bookmark-flash');
+            setTimeout(() => {
+              msgEl.classList.remove('bookmark-flash');
+              isBookmarkScrollingRef.current = false;
+            }, 1500);
+            onClearPendingScroll?.();
+          });
+        });
       } else if (retries > 0) {
         setTimeout(() => attemptScroll(retries - 1), 200);
       } else {
+        isBookmarkScrollingRef.current = false;
         onClearPendingScroll?.();
       }
     };
 
     // Give IntersectionObserver + React render time to fire
     const timer = setTimeout(() => attemptScroll(5), 150);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      isBookmarkScrollingRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingScrollToMessageId, currentSession?.id]);
 
