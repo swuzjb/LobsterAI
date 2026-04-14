@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { contextBridge, ipcRenderer } from 'electron';
 
 import { BookmarkIpcChannel } from '../bookmark/constants';
@@ -167,6 +168,11 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('openclaw:engine:onProgress', handler);
         return () => ipcRenderer.removeListener('openclaw:engine:onProgress', handler);
       },
+    },
+    sessionPolicy: {
+      get: () => ipcRenderer.invoke('openclaw:sessionPolicy:get'),
+      set: (config: { keepAlive: '1d' | '7d' | '30d' | '365d' }) =>
+        ipcRenderer.invoke('openclaw:sessionPolicy:set', config),
     },
   },
   agents: {
@@ -530,18 +536,6 @@ contextBridge.exposeInMainWorld('electron', {
   },
   networkStatus: {
     send: (status: 'online' | 'offline') => ipcRenderer.send('network:status-change', status),
-  },
-  qwen: {
-    // OAuth登录
-    oauthLogin: () => ipcRenderer.invoke('qwen:oauth:login'),
-    // OAuth刷新token
-    oauthRefresh: (refreshToken: string) => ipcRenderer.invoke('qwen:oauth:refresh', refreshToken),
-    // OAuth进度监听
-    onOAuthProgress: (callback: (message: string) => void) => {
-      const handler = (_event: any, message: string) => callback(message);
-      ipcRenderer.on('qwen:oauth:progress', handler);
-      return () => ipcRenderer.removeListener('qwen:oauth:progress', handler);
-    },
   },
   auth: {
     login: (loginUrl?: string) => ipcRenderer.invoke('auth:login', { loginUrl }),
