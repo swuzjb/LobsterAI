@@ -1695,10 +1695,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   // Clear lazy-render height cache when session changes
   const sessionId = currentSession?.id;
   useEffect(() => {
-    // Skip clearing when navigating from bookmarks — cached heights keep layout stable
-    if (!pendingScrollTarget) {
-      clearHeightCache();
-    }
+    clearHeightCache();
   }, [sessionId]);
 
   // Rail navigation states
@@ -2461,116 +2458,39 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     }
   }, [messagesLength, lastMessageContent, isStreaming, shouldAutoScroll, turns.length]);
 
-  // Scroll to a specific message when navigating from bookmarks
+  // Scroll to a specific message when navigating from bookmarks.
+  // pendingScrollTarget forces alwaysRender=true on all turns (in renderConversationTurns),
+  // so by the time this effect runs, all messages are in the DOM with correct heights.
   useEffect(() => {
     if (!pendingScrollTarget || !currentSession?.messages?.length) return;
 
-    // Wait until the correct session is loaded — don't clear pending state for wrong session
+    // Wait until the correct session is loaded
     if (currentSession.id !== pendingScrollTarget.sessionId) return;
 
     const targetMessageId = pendingScrollTarget.messageId;
 
-    // Prevent auto-scroll and scroll handler from fighting with bookmark navigation
     setShouldAutoScroll(false);
     isBookmarkScrollingRef.current = true;
 
-    // Find which turn index contains the target message
-    let targetTurnIndex = -1;
-    for (let i = 0; i < turns.length; i++) {
-      const turn = turns[i];
-      if (turn.userMessage?.id === targetMessageId) {
-        targetTurnIndex = i;
-        break;
-      }
-      if (
-        turn.assistantItems.some(
-          item => item.type !== 'tool_group' && item.message?.id === targetMessageId,
-        )
-      ) {
-        targetTurnIndex = i;
-        break;
-      }
-    }
-
-    if (targetTurnIndex === -1) {
-      isBookmarkScrollingRef.current = false;
-      onClearPendingScroll?.();
-      return;
-    }
-
-    // Phase 1: Scroll to the turn container (always in DOM even when lazy-rendered).
-    // This triggers IntersectionObserver which renders the actual content.
-    const turnEl = document.querySelector(`[data-turn-index="${targetTurnIndex}"]`);
-    if (turnEl) {
-      turnEl.scrollIntoView({ behavior: 'auto', block: 'center' });
-    }
-
-    // Phase 2: Wait for the message element to appear, then stabilize its position.
-    // Lazy rendering causes continuous layout shifts as placeholder turns expand to
-    // full height. We use a polling loop that keeps re-centering the element until
-    // its position actually stabilizes within the scroll container.
-    let stabilizeRaf = 0;
-    let stabilizeTimer = 0;
-
-    const attemptScroll = (retries: number) => {
+    // Wait one frame for React to render all turns (alwaysRender=true is now active),
+    // then scroll to the target message.
+    const raf = requestAnimationFrame(() => {
       const msgEl = document.querySelector(`[data-message-id="${targetMessageId}"]`);
       if (msgEl) {
-        const container = scrollContainerRef.current;
-        if (!container) {
+        msgEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+        msgEl.classList.add('bookmark-flash');
+        setTimeout(() => {
+          msgEl.classList.remove('bookmark-flash');
           isBookmarkScrollingRef.current = false;
-          onClearPendingScroll?.();
-          return;
-        }
-
-        let stableCount = 0;
-        let attempts = 0;
-        const maxAttempts = 20;
-
-        const stabilize = () => {
-          const containerRect = container.getBoundingClientRect();
-          const msgRect = msgEl.getBoundingClientRect();
-          // How far the element center is from the container center
-          const msgCenter = msgRect.top + msgRect.height / 2;
-          const containerCenter = containerRect.top + containerRect.height / 2;
-          const offset = Math.abs(msgCenter - containerCenter);
-
-          if (offset > 10 && attempts < maxAttempts) {
-            // Not centered yet — re-scroll
-            msgEl.scrollIntoView({ behavior: 'auto', block: 'center' });
-            stableCount = 0;
-            attempts++;
-            stabilizeRaf = requestAnimationFrame(stabilize);
-          } else if (stableCount < 3 && attempts < maxAttempts) {
-            // Position looks good, but wait a few more frames to confirm layout is stable
-            stableCount++;
-            attempts++;
-            stabilizeRaf = requestAnimationFrame(stabilize);
-          } else {
-            // Position is stable — apply highlight
-            msgEl.classList.add('bookmark-flash');
-            stabilizeTimer = window.setTimeout(() => {
-              msgEl.classList.remove('bookmark-flash');
-              isBookmarkScrollingRef.current = false;
-            }, 1500);
-            onClearPendingScroll?.();
-          }
-        };
-
-        stabilize();
-      } else if (retries > 0) {
-        setTimeout(() => attemptScroll(retries - 1), 200);
+        }, 1500);
       } else {
         isBookmarkScrollingRef.current = false;
-        onClearPendingScroll?.();
       }
-    };
+      onClearPendingScroll?.();
+    });
 
-    // Give IntersectionObserver + React render time to fire
-    const timer = setTimeout(() => attemptScroll(8), 100);
     return () => {
-      clearTimeout(timer);
-      cancelAnimationFrame(stabilizeRaf);
-      clearTimeout(stabilizeTimer);
+      cancelAnimationFrame(raf);
       isBookmarkScrollingRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2606,8 +2526,10 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
       const isLastTurn = index === turns.length - 1;
       const showTypingIndicator = isStreaming && isLastTurn && !hasRenderableAssistantContent(turn);
       const showAssistantBlock = turn.assistantItems.length > 0 || showTypingIndicator;
-      // Always render last 3 turns (needed for streaming, auto-scroll, and smooth UX)
-      const alwaysRender = index >= turns.length - 3;
+      // Always render last 3 turns (needed for streaming, auto-scroll, and smooth UX).
+      // Also force-render all turns when a bookmark scroll is pending, so the layout
+      // heights are accurate and scrollIntoView positions correctly.
+      const alwaysRender = index >= turns.length - 3 || !!pendingScrollTarget;
 
       // Compute rail indices for user/assistant messages (must match rail IIFE logic)
       let asstContent = '';
