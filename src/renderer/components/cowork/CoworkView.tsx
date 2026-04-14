@@ -46,7 +46,7 @@ export interface CoworkViewProps {
   onToggleSidebar?: () => void;
   onNewChat?: () => void;
   updateBadge?: React.ReactNode;
-  pendingScrollToMessageId?: string | null;
+  pendingScrollTarget?: { sessionId: string; messageId: string } | null;
   onClearPendingScroll?: () => void;
 }
 
@@ -57,7 +57,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({
   onToggleSidebar,
   onNewChat,
   updateBadge,
-  pendingScrollToMessageId,
+  pendingScrollTarget,
   onClearPendingScroll,
 }) => {
   const dispatch = useDispatch();
@@ -618,7 +618,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({
           onToggleSidebar={onToggleSidebar}
           onNewChat={onNewChat}
           updateBadge={updateBadge}
-          pendingScrollToMessageId={pendingScrollToMessageId}
+          pendingScrollTarget={pendingScrollTarget}
           onClearPendingScroll={onClearPendingScroll}
         />
       </div>

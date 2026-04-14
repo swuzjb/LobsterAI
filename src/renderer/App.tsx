@@ -56,7 +56,10 @@ const App: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [, forceLanguageRefresh] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [pendingScrollToMessageId, setPendingScrollToMessageId] = useState<string | null>(null);
+  const [pendingScrollTarget, setPendingScrollTarget] = useState<{
+    sessionId: string;
+    messageId: string;
+  } | null>(null);
   const [updateInfo, setUpdateInfo] = useState<AppUpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateModalState, setUpdateModalState] = useState<
@@ -317,10 +320,10 @@ const App: React.FC = () => {
     setMainView('bookmarks');
   }, []);
 
-  const handleJumpToMessage = useCallback(async (sessionId: string, messageId: string) => {
+  const handleJumpToMessage = useCallback((sessionId: string, messageId: string) => {
+    setPendingScrollTarget({ sessionId, messageId });
+    coworkService.loadSession(sessionId);
     setMainView('cowork');
-    await coworkService.loadSession(sessionId);
-    setPendingScrollToMessageId(messageId);
   }, []);
 
   const handleToggleSidebar = useCallback(() => {
@@ -787,8 +790,8 @@ const App: React.FC = () => {
                 onToggleSidebar={handleToggleSidebar}
                 onNewChat={handleNewChat}
                 updateBadge={isSidebarCollapsed ? updateBadge : null}
-                pendingScrollToMessageId={pendingScrollToMessageId}
-                onClearPendingScroll={() => setPendingScrollToMessageId(null)}
+                pendingScrollTarget={pendingScrollTarget}
+                onClearPendingScroll={() => setPendingScrollTarget(null)}
               />
             )}
           </div>

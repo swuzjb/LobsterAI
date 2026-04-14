@@ -58,7 +58,7 @@ interface CoworkSessionDetailProps {
   onToggleSidebar?: () => void;
   onNewChat?: () => void;
   updateBadge?: React.ReactNode;
-  pendingScrollToMessageId?: string | null;
+  pendingScrollTarget?: { sessionId: string; messageId: string } | null;
   onClearPendingScroll?: () => void;
 }
 
@@ -1675,7 +1675,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   onToggleSidebar,
   onNewChat,
   updateBadge,
-  pendingScrollToMessageId,
+  pendingScrollTarget,
   onClearPendingScroll,
 }) => {
   const dispatch = useDispatch();
@@ -1696,7 +1696,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   const sessionId = currentSession?.id;
   useEffect(() => {
     // Skip clearing when navigating from bookmarks — cached heights keep layout stable
-    if (!pendingScrollToMessageId) {
+    if (!pendingScrollTarget) {
       clearHeightCache();
     }
   }, [sessionId]);
@@ -1745,12 +1745,12 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
   useEffect(() => {
     // Don't auto-scroll to bottom when navigating from bookmarks
-    if (pendingScrollToMessageId) {
+    if (pendingScrollTarget) {
       setShouldAutoScroll(false);
     } else {
       setShouldAutoScroll(true);
     }
-  }, [currentSession?.id, pendingScrollToMessageId]);
+  }, [currentSession?.id, pendingScrollTarget]);
 
   // Focus rename input when entering rename mode
   useEffect(() => {
@@ -2443,7 +2443,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
   // Auto scroll to bottom when new messages arrive or content updates (streaming)
   useEffect(() => {
-    if (!shouldAutoScroll || pendingScrollToMessageId) {
+    if (!shouldAutoScroll || pendingScrollTarget) {
       return;
     }
     const container = scrollContainerRef.current;
@@ -2463,7 +2463,12 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
   // Scroll to a specific message when navigating from bookmarks
   useEffect(() => {
-    if (!pendingScrollToMessageId || !currentSession?.messages?.length) return;
+    if (!pendingScrollTarget || !currentSession?.messages?.length) return;
+
+    // Wait until the correct session is loaded — don't clear pending state for wrong session
+    if (currentSession.id !== pendingScrollTarget.sessionId) return;
+
+    const targetMessageId = pendingScrollTarget.messageId;
 
     // Prevent auto-scroll and scroll handler from fighting with bookmark navigation
     setShouldAutoScroll(false);
@@ -2473,13 +2478,13 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     let targetTurnIndex = -1;
     for (let i = 0; i < turns.length; i++) {
       const turn = turns[i];
-      if (turn.userMessage?.id === pendingScrollToMessageId) {
+      if (turn.userMessage?.id === targetMessageId) {
         targetTurnIndex = i;
         break;
       }
       if (
         turn.assistantItems.some(
-          item => item.type !== 'tool_group' && item.message?.id === pendingScrollToMessageId,
+          item => item.type !== 'tool_group' && item.message?.id === targetMessageId,
         )
       ) {
         targetTurnIndex = i;
@@ -2502,7 +2507,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
     // Phase 2: After lazy render fires, find the exact message element and highlight it.
     const attemptScroll = (retries: number) => {
-      const msgEl = document.querySelector(`[data-message-id="${pendingScrollToMessageId}"]`);
+      const msgEl = document.querySelector(`[data-message-id="${targetMessageId}"]`);
       if (msgEl) {
         // Use 'auto' to avoid prolonged scroll events fighting with other effects
         msgEl.scrollIntoView({ behavior: 'auto', block: 'center' });
@@ -2533,7 +2538,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
       isBookmarkScrollingRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingScrollToMessageId, currentSession?.id]);
+  }, [pendingScrollTarget, currentSession?.id]);
 
   if (!currentSession) {
     return null;
