@@ -1459,8 +1459,8 @@ export class OpenClawConfigSync {
 
         for (const inst of enabledInstances) {
           const accountId = inst.instanceId;
-          // Transform instanceId: email-1 → 1, email-work → WORK
-          const envSuffix = accountId.replace(/^email-/, '').toUpperCase();
+          // Transform instanceId: email-1 → 1, email-work → WORK, uuid → UUID (dashes replaced with underscores)
+          const envSuffix = accountId.replace(/^email-/, '').replace(/-/g, '_').toUpperCase();
 
           const accountConfig: Record<string, unknown> = {
             enabled: true,
@@ -1769,7 +1769,7 @@ export class OpenClawConfigSync {
       for (const inst of emailConfig.instances) {
         if (!inst.enabled || !inst.email) continue;
 
-        const envSuffix = inst.instanceId.replace(/^email-/, '').toUpperCase();
+        const envSuffix = inst.instanceId.replace(/^email-/, '').replace(/-/g, '_').toUpperCase();
 
         if (inst.transport === 'imap' && inst.password) {
           env[`LOBSTER_EMAIL_${envSuffix}_PASSWORD`] = inst.password;

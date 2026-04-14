@@ -3,28 +3,30 @@
  * Configuration UI for DingTalk, Feishu and Telegram IM bots
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { SignalIcon, XMarkIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { EyeIcon, EyeSlashIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/20/solid';
-import { RootState } from '../../store';
-import { imService } from '../../services/im';
-import { setDingTalkConfig, setDingTalkInstanceConfig, setFeishuConfig, setFeishuInstanceConfig, setTelegramOpenClawConfig, setQQConfig, setQQInstanceConfig, setDiscordConfig, setNimConfig, setNeteaseBeeChanConfig, setWecomConfig, setWeixinConfig, setPopoConfig, setEmailInstanceConfig, clearError } from '../../store/slices/imSlice';
-import { i18nService } from '../../services/i18n';
-import type { IMConnectivityCheck, IMConnectivityTestResult, IMGatewayConfig, TelegramOpenClawConfig, DiscordOpenClawConfig, WecomOpenClawConfig, PopoOpenClawConfig, EmailInstanceConfig } from '../../types/im';
-import { MAX_QQ_INSTANCES, MAX_FEISHU_INSTANCES, MAX_DINGTALK_INSTANCES, MAX_EMAIL_INSTANCES } from '../../types/im';
-import QQInstanceSettings from './QQInstanceSettings';
-import FeishuInstanceSettings from './FeishuInstanceSettings';
-import DingTalkInstanceSettings from './DingTalkInstanceSettings';
-import { PlatformRegistry } from '@shared/platform';
+import { CheckCircleIcon, ExclamationTriangleIcon,SignalIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import type { Platform } from '@shared/platform';
-import { getVisibleIMPlatforms } from '../../utils/regionFilter';
+import { PlatformRegistry } from '@shared/platform';
 import WecomAIBotSDK from '@wecom/wecom-aibot-sdk';
 import { QRCodeSVG } from 'qrcode.react';
-import { ArrowPathIcon } from '@heroicons/react/24/outline';
-import { SchemaForm } from './SchemaForm';
-import type { UiHint } from './SchemaForm';
+import React, { useEffect, useMemo, useRef,useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+
+import { i18nService } from '../../services/i18n';
+import { imService } from '../../services/im';
+import { RootState } from '../../store';
+import { clearError,setDingTalkConfig, setDingTalkInstanceConfig, setDiscordConfig, setEmailInstanceConfig, setFeishuConfig, setFeishuInstanceConfig, setNeteaseBeeChanConfig, setNimConfig, setPopoConfig, setQQConfig, setQQInstanceConfig, setTelegramOpenClawConfig, setWecomConfig, setWeixinConfig } from '../../store/slices/imSlice';
+import type { DiscordOpenClawConfig, EmailInstanceConfig,IMConnectivityCheck, IMConnectivityTestResult, IMGatewayConfig, PopoOpenClawConfig, TelegramOpenClawConfig, WecomOpenClawConfig } from '../../types/im';
+import { MAX_DINGTALK_INSTANCES, MAX_EMAIL_INSTANCES,MAX_FEISHU_INSTANCES, MAX_QQ_INSTANCES } from '../../types/im';
+import { getVisibleIMPlatforms } from '../../utils/regionFilter';
 import Modal from '../common/Modal';
+import TrashIcon from '../icons/TrashIcon';
+import DingTalkInstanceSettings from './DingTalkInstanceSettings';
+import FeishuInstanceSettings from './FeishuInstanceSettings';
+import QQInstanceSettings from './QQInstanceSettings';
+import type { UiHint } from './SchemaForm';
+import { SchemaForm } from './SchemaForm';
 
 
 
@@ -113,7 +115,6 @@ const IMSettings: React.FC = () => {
   const [dingtalkExpanded, setDingtalkExpanded] = useState(false);
   const [emailExpanded, setEmailExpanded] = useState(false);
   const [activeEmailInstanceId, setActiveEmailInstanceId] = useState<string | null>(null);
-  const [emailTesting, setEmailTesting] = useState(false);
   const [testingPlatform, setTestingPlatform] = useState<Platform | null>(null);
   const [connectivityResults, setConnectivityResults] = useState<Partial<Record<Platform, IMConnectivityTestResult>>>({});
   const [connectivityModalPlatform, setConnectivityModalPlatform] = useState<Platform | null>(null);
@@ -563,40 +564,6 @@ const IMSettings: React.FC = () => {
 
   // ==================== Email instance helpers ====================
 
-  const handleEmailDeleteInstance = async (instanceId: string) => {
-    const instance = config.email.instances.find(i => i.instanceId === instanceId);
-    if (!instance) return;
-    const confirmed = window.confirm(
-      i18nService.t('emailDeleteConfirm').replace('{name}', instance.instanceName),
-    );
-    if (!confirmed) return;
-    await imService.deleteEmailInstance(instanceId);
-    const remaining = config.email.instances.filter(i => i.instanceId !== instanceId);
-    setActiveEmailInstanceId(remaining.length > 0 ? remaining[0].instanceId : null);
-  };
-
-  const handleEmailTestConnection = async () => {
-    if (!activeEmailInstanceId) return;
-    setEmailTesting(true);
-    try {
-      const result = await window.electron.im.testGateway('email');
-      if (result.success) {
-        alert(i18nService.t('emailTestSuccess'));
-      } else {
-        alert(i18nService.t('emailTestFailed').replace('{error}', result.error || 'Unknown error'));
-      }
-    } catch (error) {
-      alert(
-        i18nService.t('emailTestFailed').replace(
-          '{error}',
-          error instanceof Error ? error.message : String(error),
-        ),
-      );
-    } finally {
-      setEmailTesting(false);
-    }
-  };
-
   const handleEmailGetApiKey = async () => {
     if (!activeEmailInstanceId) return;
     const apiKeyUrl = 'https://claw.163.com/projects/dashboard/#/api-keys';
@@ -938,6 +905,19 @@ const IMSettings: React.FC = () => {
           }
         }
       }
+      return;
+    }
+
+    // For Email, persist email config and test (OpenClaw mode)
+    if (platform === 'email') {
+      await imService.persistConfig({ email: config.email });
+      // Pass only the active instance to avoid testing wrong instance
+      const activeInstance = activeEmailInstanceId
+        ? config.email.instances.find(i => i.instanceId === activeEmailInstanceId)
+        : config.email.instances.find(i => i.enabled) || config.email.instances[0];
+      await runConnectivityTest(platform, {
+        email: { instances: activeInstance ? [activeInstance] : [] },
+      } as Partial<IMGatewayConfig>);
       return;
     }
 
@@ -1693,21 +1673,61 @@ const IMSettings: React.FC = () => {
           const labelClass = 'block text-xs font-medium text-secondary mb-1';
           return (
             <div className="space-y-4">
-              {/* Instance header */}
+              {/* Instance Header: Name, Status, Enable Toggle, Delete */}
               <div className="flex items-center gap-3 pb-3 border-b border-border-subtle">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface border border-border-subtle p-1">
                     <img src={PlatformRegistry.logo('email')} alt="Email" className="w-4 h-4 object-contain rounded" />
                   </div>
-                  <h3 className="text-sm font-medium text-foreground">{inst.instanceName}</h3>
+                  <h3 className="text-sm font-medium text-foreground truncate">{inst.instanceName}</h3>
                 </div>
-                <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+
+                {/* Status badge */}
+                <div className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
                   instStatus?.connected
                     ? 'bg-green-500/15 text-green-600 dark:text-green-400'
                     : 'bg-gray-500/15 text-gray-500 dark:text-gray-400'
                 }`}>
-                  {instStatus?.connected ? i18nService.t('emailConnected') : i18nService.t('emailDisconnected')}
+                  {instStatus?.connected ? i18nService.t('connected') : i18nService.t('disconnected')}
                 </div>
+
+                {/* Enable toggle */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const newEnabled = !inst.enabled;
+                    const success = await imService.updateEmailInstanceConfig(inst.instanceId, { enabled: newEnabled });
+                    if (success) {
+                      dispatch(setEmailInstanceConfig({ instanceId: inst.instanceId, config: { enabled: newEnabled } }));
+                      if (newEnabled) dispatch(clearError());
+                    }
+                  }}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out cursor-pointer ${
+                    inst.enabled
+                      ? (instStatus?.connected ? 'bg-green-500' : 'bg-yellow-500')
+                      : 'bg-gray-400 dark:bg-gray-600'
+                  }`}
+                  title={inst.enabled ? i18nService.t('imQQDisableInstance') : i18nService.t('imQQEnableInstance')}
+                >
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    inst.enabled ? 'translate-x-4' : 'translate-x-0'
+                  }`} />
+                </button>
+
+                {/* Delete button */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await imService.deleteEmailInstance(inst.instanceId);
+                    const remaining = config.email.instances.filter(i => i.instanceId !== inst.instanceId);
+                    setActiveEmailInstanceId(remaining.length > 0 ? remaining[0].instanceId : null);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors flex-shrink-0"
+                  title={i18nService.t('delete') || 'Delete'}
+                >
+                  <TrashIcon className="h-4 w-4" />
+                  {i18nService.t('delete')}
+                </button>
               </div>
 
               {/* Instance Name */}
@@ -1924,38 +1944,20 @@ const IMSettings: React.FC = () => {
                 </div>
               </div>
 
-              {/* Enabled toggle */}
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-secondary">{i18nService.t('emailEnabledLabel')}</label>
-                <div
-                  onClick={() => {
-                    const newEnabled = !inst.enabled;
-                    dispatch(setEmailInstanceConfig({ instanceId: inst.instanceId, config: { enabled: newEnabled } }));
-                    void imService.persistEmailInstanceConfig(inst.instanceId, { enabled: newEnabled });
-                  }}
-                  className={`w-10 h-5 rounded-full flex items-center cursor-pointer transition-colors ${inst.enabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}
-                >
-                  <div className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${inst.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </div>
-              </div>
-
-              {/* Bottom action bar */}
-              <div className="flex items-center gap-2 pt-4 border-t border-border-subtle">
+              {/* Connectivity test button */}
+              <div className="pt-1">
                 <button
                   type="button"
-                  onClick={() => void handleEmailTestConnection()}
-                  disabled={(inst.transport === 'ws' ? !inst.apiKey : !inst.email) || emailTesting}
-                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-xl border border-border text-foreground hover:bg-surface-raised disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  onClick={() => void handleConnectivityTest('email')}
+                  disabled={testingPlatform === 'email'}
+                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-xl border border-border text-foreground hover:bg-surface-raised disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
                 >
                   <SignalIcon className="h-3.5 w-3.5 mr-1.5" />
-                  {emailTesting ? i18nService.t('imConnectivityTesting') : i18nService.t('testConnection')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleEmailDeleteInstance(inst.instanceId)}
-                  className="ml-auto px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
-                >
-                  {i18nService.t('delete')}
+                  {testingPlatform === 'email'
+                    ? i18nService.t('imConnectivityTesting')
+                    : connectivityResults['email' as keyof typeof connectivityResults]
+                      ? i18nService.t('imConnectivityRetest')
+                      : i18nService.t('imConnectivityTest')}
                 </button>
               </div>
             </div>
