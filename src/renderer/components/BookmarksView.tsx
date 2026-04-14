@@ -1,10 +1,13 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 
 import { bookmarkService } from '../services/bookmark';
 import { i18nService } from '../services/i18n';
 import type { RootState } from '../store';
 import type { Bookmark } from '../types/cowork';
+import MarkdownContent from './MarkdownContent';
+
+const COLLAPSED_MAX_HEIGHT = 160;
 
 function formatRelativeTime(timestamp: number): string {
   const now = Date.now();
@@ -26,47 +29,66 @@ const BookmarkItem: React.FC<{
   onJump: (bookmark: Bookmark) => void;
   onRemove: (bookmarkId: string) => void;
 }> = React.memo(({ bookmark, sessionExists, onJump, onRemove }) => {
-  const [isHovered, setIsHovered] = React.useState(false);
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isUser = bookmark.messageType === 'user';
   const badgeColor = isUser ? 'text-blue-500 bg-blue-500/10' : 'text-purple-500 bg-purple-500/10';
-  const borderColor = isUser ? 'border-l-blue-500' : 'border-l-purple-500';
 
-  const lines = bookmark.content.split('\n');
-  const canExpand = lines.length > 5 || bookmark.content.length > 300;
-  const truncated = lines.length > 5 ? lines.slice(0, 5).join('\n') + '...' : bookmark.content;
+  useEffect(() => {
+    const el = contentRef.current;
+    if (el) {
+      setCanExpand(el.scrollHeight > COLLAPSED_MAX_HEIGHT);
+    }
+  }, [bookmark.content]);
 
   return (
     <div
-      className={`bg-surface rounded-lg p-3 border-l-[3px] ${borderColor} hover:bg-surface-raised transition-colors`}
+      className={`group bg-surface rounded-lg px-3 py-2 hover:bg-surface-raised transition-colors ${canExpand ? 'cursor-pointer' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => canExpand && setIsExpanded(!isExpanded)}
     >
-      <div className="flex items-center justify-between mb-2">
-        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${badgeColor}`}>
-          {isUser ? i18nService.t('userMessage') : i18nService.t('aiReply')}
-        </span>
-        <span className="text-xs text-muted">
-          {bookmark.sessionTitle} · {formatRelativeTime(bookmark.createdAt)}
-        </span>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${badgeColor}`}>
+            {isUser ? i18nService.t('userMessage') : i18nService.t('aiReply')}
+          </span>
+          <span className="text-xs text-muted truncate max-w-[200px]" title={bookmark.sessionTitle}>
+            {bookmark.sessionTitle}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {canExpand && (
+            <span className="text-xs text-primary">
+              {isExpanded ? i18nService.t('collapse') : i18nService.t('expand')}
+            </span>
+          )}
+          <span className="text-xs text-muted">{formatRelativeTime(bookmark.createdAt)}</span>
+        </div>
       </div>
-      <div
-        className={`text-sm text-foreground whitespace-pre-wrap break-words ${canExpand ? 'cursor-pointer' : ''} ${isExpanded ? '' : 'line-clamp-5'}`}
-        onClick={() => canExpand && setIsExpanded(!isExpanded)}
-      >
-        {isExpanded ? bookmark.content : truncated}
-      </div>
-      {canExpand && (
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-xs text-primary hover:text-primary/80 mt-1 transition-colors"
+      <div className="relative">
+        <div
+          ref={contentRef}
+          className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
+          style={!isExpanded && canExpand ? { maxHeight: COLLAPSED_MAX_HEIGHT } : undefined}
         >
-          {isExpanded ? i18nService.t('collapse') : i18nService.t('expand')}
-        </button>
-      )}
-      <div className="flex items-center justify-end gap-2 mt-2">
+          <MarkdownContent
+            content={bookmark.content}
+            className="prose dark:prose-invert max-w-none text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+          />
+        </div>
+        {canExpand && !isExpanded && (
+          <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-surface group-hover:from-surface-raised pointer-events-none transition-colors" />
+        )}
+      </div>
+      <div className="flex items-center justify-end gap-2 mt-1.5 pt-1.5 border-t border-border/50">
         <button
-          onClick={() => onRemove(bookmark.id)}
+          onClick={e => {
+            e.stopPropagation();
+            onRemove(bookmark.id);
+          }}
           className={`text-xs text-muted hover:text-red-500 transition-colors ${
             isHovered ? 'opacity-100' : 'opacity-0'
           }`}
@@ -74,7 +96,8 @@ const BookmarkItem: React.FC<{
           {i18nService.t('removeBookmark')}
         </button>
         <button
-          onClick={() => {
+          onClick={e => {
+            e.stopPropagation();
             if (sessionExists) {
               onJump(bookmark);
             }
