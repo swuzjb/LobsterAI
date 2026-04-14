@@ -2466,7 +2466,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
     // Wait until the correct session is loaded
     if (currentSession.id !== pendingScrollTarget.sessionId) {
-      console.debug(
+      console.log(
         '[BookmarkScroll] waiting for correct session, current:',
         currentSession.id,
         'target:',
@@ -2476,7 +2476,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     }
 
     const targetMessageId = pendingScrollTarget.messageId;
-    console.debug(
+    console.log(
       '[BookmarkScroll] effect fired, targetMessageId:',
       targetMessageId,
       'turns:',
@@ -2490,7 +2490,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     const timer = setTimeout(() => {
       const msgEl = document.querySelector(`[data-message-id="${targetMessageId}"]`);
       const allMsgEls = document.querySelectorAll('[data-message-id]');
-      console.debug(
+      console.log(
         '[BookmarkScroll] found target element:',
         !!msgEl,
         'total data-message-id elements:',
@@ -2500,7 +2500,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
       if (msgEl) {
         const container = scrollContainerRef.current;
         if (container) {
-          console.debug(
+          console.log(
             '[BookmarkScroll] container scrollHeight:',
             container.scrollHeight,
             'clientHeight:',
@@ -2508,7 +2508,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
           );
           const msgRect = msgEl.getBoundingClientRect();
           const containerRect = container.getBoundingClientRect();
-          console.debug(
+          console.log(
             '[BookmarkScroll] BEFORE scroll - msgEl top:',
             msgRect.top,
             'container top:',
@@ -2523,7 +2523,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         if (container) {
           const msgRectAfter = msgEl.getBoundingClientRect();
           const containerRectAfter = container.getBoundingClientRect();
-          console.debug(
+          console.log(
             '[BookmarkScroll] AFTER scroll - msgEl top:',
             msgRectAfter.top,
             'container top:',
@@ -2537,7 +2537,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
           isBookmarkScrollingRef.current = false;
         }, 1500);
       } else {
-        console.debug(
+        console.log(
           '[BookmarkScroll] target element NOT FOUND. Looking for:',
           `[data-message-id="${targetMessageId}"]`,
         );
@@ -2545,7 +2545,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         const firstFew = Array.from(allMsgEls)
           .slice(0, 5)
           .map(el => el.getAttribute('data-message-id'));
-        console.debug('[BookmarkScroll] first 5 message IDs in DOM:', firstFew);
+        console.log('[BookmarkScroll] first 5 message IDs in DOM:', firstFew);
         isBookmarkScrollingRef.current = false;
       }
       onClearPendingScroll?.();

@@ -75,7 +75,7 @@ const BookmarkItem: React.FC<{
         </button>
         <button
           onClick={() => {
-            console.debug(
+            console.log(
               '[BookmarkJump] jump clicked, sessionId:',
               bookmark.sessionId,
               'sessionExists:',

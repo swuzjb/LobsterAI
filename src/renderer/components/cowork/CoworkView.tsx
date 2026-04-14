@@ -506,7 +506,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({
   }, [currentSession, isOpenClawEngine]);
 
   if (!isInitialized) {
-    console.debug(
+    console.log(
       '[BookmarkJump] CoworkView not initialized yet, pendingScrollTarget:',
       pendingScrollTarget,
     );
@@ -609,7 +609,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({
 
   // When there's a current session, show the session detail view
   if (currentSession) {
-    console.debug(
+    console.log(
       '[BookmarkJump] CoworkView rendering CoworkSessionDetail, session:',
       currentSession.id,
       'pendingScrollTarget:',

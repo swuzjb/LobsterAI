@@ -321,7 +321,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleJumpToMessage = useCallback((sessionId: string, messageId: string) => {
-    console.debug(
+    console.log(
       '[BookmarkJump] handleJumpToMessage called, sessionId:',
       sessionId,
       'messageId:',
