@@ -2492,11 +2492,15 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         setTimeout(() => {
           msgEl.classList.remove('bookmark-flash');
           isBookmarkScrollingRef.current = false;
+          // Clear pendingScrollTarget AFTER flash animation completes.
+          // This keeps alwaysRender=true on all LazyRenderTurns during the scroll,
+          // preventing layout collapse from placeholder height changes.
+          onClearPendingScroll?.();
         }, 1500);
       } else {
         isBookmarkScrollingRef.current = false;
+        onClearPendingScroll?.();
       }
-      onClearPendingScroll?.();
     }, 300);
 
     return () => {
