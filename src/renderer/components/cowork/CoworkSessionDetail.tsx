@@ -2465,32 +2465,94 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     if (!pendingScrollTarget || !currentSession?.messages?.length) return;
 
     // Wait until the correct session is loaded
-    if (currentSession.id !== pendingScrollTarget.sessionId) return;
+    if (currentSession.id !== pendingScrollTarget.sessionId) {
+      console.debug(
+        '[BookmarkScroll] waiting for correct session, current:',
+        currentSession.id,
+        'target:',
+        pendingScrollTarget.sessionId,
+      );
+      return;
+    }
 
     const targetMessageId = pendingScrollTarget.messageId;
+    console.debug(
+      '[BookmarkScroll] effect fired, targetMessageId:',
+      targetMessageId,
+      'turns:',
+      turns.length,
+    );
 
     setShouldAutoScroll(false);
     isBookmarkScrollingRef.current = true;
 
-    // Wait one frame for React to render all turns (alwaysRender=true is now active),
-    // then scroll to the target message.
-    const raf = requestAnimationFrame(() => {
+    // Use setTimeout to ensure React has committed DOM and browser has laid out
+    const timer = setTimeout(() => {
       const msgEl = document.querySelector(`[data-message-id="${targetMessageId}"]`);
+      const allMsgEls = document.querySelectorAll('[data-message-id]');
+      console.debug(
+        '[BookmarkScroll] found target element:',
+        !!msgEl,
+        'total data-message-id elements:',
+        allMsgEls.length,
+      );
+
       if (msgEl) {
+        const container = scrollContainerRef.current;
+        if (container) {
+          console.debug(
+            '[BookmarkScroll] container scrollHeight:',
+            container.scrollHeight,
+            'clientHeight:',
+            container.clientHeight,
+          );
+          const msgRect = msgEl.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          console.debug(
+            '[BookmarkScroll] BEFORE scroll - msgEl top:',
+            msgRect.top,
+            'container top:',
+            containerRect.top,
+            'container height:',
+            containerRect.height,
+          );
+        }
+
         msgEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+
+        if (container) {
+          const msgRectAfter = msgEl.getBoundingClientRect();
+          const containerRectAfter = container.getBoundingClientRect();
+          console.debug(
+            '[BookmarkScroll] AFTER scroll - msgEl top:',
+            msgRectAfter.top,
+            'container top:',
+            containerRectAfter.top,
+          );
+        }
+
         msgEl.classList.add('bookmark-flash');
         setTimeout(() => {
           msgEl.classList.remove('bookmark-flash');
           isBookmarkScrollingRef.current = false;
         }, 1500);
       } else {
+        console.debug(
+          '[BookmarkScroll] target element NOT FOUND. Looking for:',
+          `[data-message-id="${targetMessageId}"]`,
+        );
+        // Log first few message IDs to compare
+        const firstFew = Array.from(allMsgEls)
+          .slice(0, 5)
+          .map(el => el.getAttribute('data-message-id'));
+        console.debug('[BookmarkScroll] first 5 message IDs in DOM:', firstFew);
         isBookmarkScrollingRef.current = false;
       }
       onClearPendingScroll?.();
-    });
+    }, 300);
 
     return () => {
-      cancelAnimationFrame(raf);
+      clearTimeout(timer);
       isBookmarkScrollingRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
