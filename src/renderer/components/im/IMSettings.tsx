@@ -1732,11 +1732,9 @@ const IMSettings: React.FC = () => {
                   className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                     emailToggleLoading === inst.instanceId
                       ? 'cursor-wait bg-gray-400 dark:bg-gray-600'
-                      : 'cursor-pointer'
-                  } ${
-                    inst.enabled
-                      ? (instStatus?.connected ? 'bg-green-500' : 'bg-yellow-500')
-                      : 'bg-gray-400 dark:bg-gray-600'
+                      : inst.enabled
+                        ? `cursor-pointer ${instStatus?.connected ? 'bg-green-500' : 'bg-yellow-500'}`
+                        : 'cursor-pointer bg-gray-400 dark:bg-gray-600'
                   }`}
                   title={inst.enabled ? i18nService.t('imQQDisableInstance') : i18nService.t('imQQEnableInstance')}
                 >
