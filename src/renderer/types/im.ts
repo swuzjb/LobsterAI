@@ -433,7 +433,7 @@ export const DEFAULT_EMAIL_MULTI_INSTANCE_CONFIG: EmailMultiInstanceConfig = {
 };
 
 export const DEFAULT_EMAIL_INSTANCE_CONFIG: Partial<EmailInstanceConfig> = {
-  enabled: true,
+  enabled: false,
   transport: 'ws',
   agentId: 'main',
   replyMode: 'complete',
