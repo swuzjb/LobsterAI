@@ -1766,12 +1766,6 @@ const IMSettings: React.FC = () => {
                 </button>
               </div>
 
-              {/* Account Name (read-only, derived from email) */}
-              <div className="flex items-center gap-2">
-                <label className={labelClass}>{i18nService.t('emailInstanceName')}</label>
-                <span className="text-sm text-foreground">{inst.instanceName || '—'}</span>
-              </div>
-
               {/* Email Address */}
               <div>
                 <label className={labelClass}>{i18nService.t('emailAddress')} <span className="text-red-500">*</span></label>
