@@ -67,6 +67,7 @@ describe('OpenClawConfigSync runtime config output', () => {
         getConfigPath: () => configPath,
         getGatewayToken: () => 'gateway-token',
         getStateDir: () => stateDir,
+        getBaseDir: () => tmpDir,
       } as never,
       getCoworkConfig: () => ({
         workingDirectory: tmpDir,
@@ -129,6 +130,7 @@ describe('OpenClawConfigSync runtime config output', () => {
         getConfigPath: () => configPath,
         getGatewayToken: () => 'gateway-token',
         getStateDir: () => stateDir,
+        getBaseDir: () => tmpDir,
       } as never,
       getCoworkConfig: () => ({
         workingDirectory: tmpDir,
@@ -221,6 +223,7 @@ describe('OpenClawConfigSync runtime config output', () => {
         getConfigPath: () => configPath,
         getGatewayToken: () => 'gateway-token',
         getStateDir: () => stateDir,
+        getBaseDir: () => tmpDir,
       } as never,
       getCoworkConfig: () => ({
         workingDirectory: tmpDir,
@@ -295,6 +298,7 @@ describe('OpenClawConfigSync runtime config output', () => {
         getConfigPath: () => configPath,
         getGatewayToken: () => 'gateway-token',
         getStateDir: () => stateDir,
+        getBaseDir: () => tmpDir,
       } as never,
       getCoworkConfig: () => ({
         workingDirectory: tmpDir,
