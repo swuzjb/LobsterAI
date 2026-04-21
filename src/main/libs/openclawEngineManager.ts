@@ -4,6 +4,7 @@ import { app, type UtilityProcess,utilityProcess } from 'electron';
 import { EventEmitter } from 'events';
 import fs from 'fs';
 import net from 'net';
+import os from 'os';
 import path from 'path';
 
 import { ensureElectronNodeShim, getElectronNodeRuntimePath, getSkillsRoot } from './coworkUtil';
@@ -252,6 +253,38 @@ export class OpenClawEngineManager extends EventEmitter {
     return this.configPath;
   }
 
+  getGatewayLogPath(): string {
+    return this.gatewayLogPath;
+  }
+
+  /**
+   * Resolve the directory where the OpenClaw gateway writes its daily rolling
+   * logs (openclaw-YYYY-MM-DD.log).  Returns null when no candidate exists.
+   */
+  getOpenClawDailyLogDir(): string | null {
+    if (process.platform === 'win32') {
+      const runtime = this.resolveRuntimeMetadata();
+      if (runtime.root) {
+        const drive = path.parse(runtime.root).root;
+        const preferred = path.join(drive, 'tmp', 'openclaw');
+        if (fs.existsSync(preferred)) return preferred;
+      }
+      const fallback = path.join(os.tmpdir(), 'openclaw');
+      return fs.existsSync(fallback) ? fallback : null;
+    }
+
+    // macOS / Linux
+    if (fs.existsSync('/tmp/openclaw')) return '/tmp/openclaw';
+    try {
+      const uid = process.getuid?.();
+      if (uid != null) {
+        const fallback = path.join(os.tmpdir(), `openclaw-${uid}`);
+        if (fs.existsSync(fallback)) return fallback;
+      }
+    } catch { /* getuid unavailable */ }
+    return null;
+  }
+
   getGatewayConnectionInfo(): OpenClawGatewayConnectionInfo {
     const runtime = this.resolveRuntimeMetadata();
     const port = this.gatewayPort ?? this.readGatewayPort();
@@ -415,7 +448,7 @@ export class OpenClawEngineManager extends EventEmitter {
       ...process.env,
       SKILLS_ROOT: skillsRoot,
       LOBSTERAI_SKILLS_ROOT: skillsRoot,
-      OPENCLAW_HOME: runtime.root,
+      OPENCLAW_HOME: this.baseDir,
       OPENCLAW_STATE_DIR: this.stateDir,
       OPENCLAW_CONFIG_PATH: this.configPath,
       OPENCLAW_GATEWAY_TOKEN: token,
@@ -605,7 +638,13 @@ export class OpenClawEngineManager extends EventEmitter {
           path.join(process.cwd(), 'vendor', 'openclaw-runtime', 'current'),
         ];
 
-    const runtimeRoot = findPath(candidateRoots);
+    // Resolve symlinks so the gateway doesn't refuse to traverse them
+    // (e.g. vendor/openclaw-runtime/current -> win-x64).
+    const runtimeRoot = (() => {
+      const found = findPath(candidateRoots);
+      if (!found) return null;
+      try { return fs.realpathSync(found); } catch { return found; }
+    })();
     const expectedPathHint = app.isPackaged
       ? path.join(process.resourcesPath, 'cfmind')
       : path.join(app.getAppPath(), 'vendor', 'openclaw-runtime', 'current');
