@@ -421,7 +421,13 @@ function syncIMChannels(configPath: string, imStore: IMStore): void {
     // For multi-instance platforms (feishu, dingtalk, qq, wecom), update existing
     // instances when present so enterprise config changes propagate correctly.
     const PLATFORM_SETTERS: Record<string, (cfg: any) => void> = {
-      'telegram': (cfg) => imStore.setTelegramOpenClawConfig(cfg),
+      'telegram': (cfg) => {
+        if (cfg && Array.isArray(cfg.instances)) {
+          imStore.setTelegramMultiInstanceConfig(cfg);
+          return;
+        }
+        imStore.setTelegramOpenClawConfig(cfg);
+      },
       'discord': (cfg) => imStore.setDiscordOpenClawConfig(cfg),
       'feishu': (cfg) => {
         const instances = imStore.getFeishuInstances();

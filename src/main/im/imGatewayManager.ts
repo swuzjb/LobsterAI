@@ -400,15 +400,18 @@ export class IMGatewayManager extends EventEmitter {
   // ==================== Status ====================
   getStatus(): IMGatewayStatus {
     const config = this.getConfig();
-    // Telegram runs via OpenClaw; reflect enabled+configured state as connected
-    const tgConfig = config.telegram;
+    // Telegram runs via OpenClaw; reflect enabled+configured state per instance
     const telegramStatus = {
-      connected: Boolean(tgConfig?.enabled && tgConfig.botToken),
-      startedAt: null as number | null,
-      lastError: null as string | null,
-      botUsername: null as string | null,
-      lastInboundAt: null as number | null,
-      lastOutboundAt: null as number | null,
+      instances: (config.telegram?.instances || []).map(inst => ({
+        instanceId: inst.instanceId,
+        instanceName: inst.instanceName,
+        connected: Boolean(inst.enabled && inst.botToken),
+        startedAt: null as number | null,
+        lastError: null as string | null,
+        botUsername: null as string | null,
+        lastInboundAt: null as number | null,
+        lastOutboundAt: null as number | null,
+      })),
     };
     // Discord runs via OpenClaw; reflect enabled+configured state as connected
     const dcConfig = config.discord;
@@ -911,7 +914,8 @@ export class IMGatewayManager extends EventEmitter {
     if (feishuInstances.some(i => i.enabled && i.appId && i.appSecret)) {
       openClawPlatformsToStart.push('feishu');
     }
-    if (config.telegram?.enabled && config.telegram.botToken) {
+    const telegramInstances = config.telegram?.instances || [];
+    if (telegramInstances.some(i => i.enabled && i.botToken)) {
       openClawPlatformsToStart.push('telegram');
     }
     if (config.discord.enabled && config.discord.botToken) {
@@ -972,9 +976,10 @@ export class IMGatewayManager extends EventEmitter {
       return feishuInstances.some(i => i.enabled && i.appId && i.appSecret);
     }
     if (platform === 'telegram') {
-      // Telegram runs via OpenClaw; consider it connected when enabled and configured
+      // Telegram runs via OpenClaw; consider it connected when any instance is enabled and configured
       const config = this.getConfig();
-      return Boolean(config.telegram?.enabled && config.telegram.botToken);
+      const telegramInstances = config.telegram?.instances || [];
+      return telegramInstances.some(i => i.enabled && i.botToken);
     }
     if (platform === 'discord') {
       // Discord runs via OpenClaw; consider it connected when enabled and configured
@@ -1089,10 +1094,11 @@ export class IMGatewayManager extends EventEmitter {
     const testedAt = Date.now();
     const platform: Platform = 'telegram';
 
-    // Resolve the Telegram config (now TelegramOpenClawConfig type)
+    // Resolve the Telegram config — pick first enabled instance with a botToken
     const mergedConfig = this.buildMergedConfig(configOverride);
-    const tgConfig = mergedConfig.telegram;
-    const botToken = tgConfig?.botToken || '';
+    const instances = mergedConfig.telegram?.instances || [];
+    const tgInstance = instances.find(i => i.enabled && i.botToken) || instances[0];
+    const botToken = tgInstance?.botToken || '';
 
     // Check 1: Bot token present
     if (!botToken) {
@@ -1837,7 +1843,7 @@ export class IMGatewayManager extends EventEmitter {
       dingtalk: configOverride.dingtalk || current.dingtalk,
       feishu: configOverride.feishu || current.feishu,
       qq: configOverride.qq || current.qq,
-      telegram: { ...current.telegram, ...(configOverride.telegram || {}) },
+      telegram: configOverride.telegram || current.telegram,
       discord: { ...current.discord, ...(configOverride.discord || {}) },
       nim: { ...current.nim, ...(configOverride.nim || {}) },
       'netease-bee': { ...current['netease-bee'], ...(configOverride['netease-bee'] || {}) },
@@ -1868,7 +1874,10 @@ export class IMGatewayManager extends EventEmitter {
       return fields;
     }
     if (platform === 'telegram') {
-      return config.telegram.botToken ? [] : ['botToken'];
+      const telegramInstances = config.telegram?.instances || [];
+      const tgInst = telegramInstances.find(i => i.enabled);
+      if (!tgInst) return ['botToken'];
+      return tgInst.botToken ? [] : ['botToken'];
     }
     if (platform === 'nim') {
       const nimInstances = config.nim?.instances || [];
@@ -2472,7 +2481,7 @@ export class IMGatewayManager extends EventEmitter {
       return startedAt ? Date.parse(startedAt) : null;
     }
     if (platform === 'dingtalk') return status.dingtalk.instances?.[0]?.startedAt ?? null;
-    if (platform === 'telegram') return status.telegram.startedAt;
+    if (platform === 'telegram') return status.telegram.instances?.[0]?.startedAt ?? null;
     if (platform === 'nim') return status.nim.instances?.[0]?.startedAt ?? null;
     if (platform === 'netease-bee') return status['netease-bee'].startedAt;
     if (platform === 'qq') return status.qq.instances?.[0]?.startedAt ?? null;
@@ -2485,7 +2494,7 @@ export class IMGatewayManager extends EventEmitter {
   private getLastInboundAt(platform: Platform, status: IMGatewayStatus): number | null {
     if (platform === 'dingtalk') return status.dingtalk.instances?.[0]?.lastInboundAt ?? null;
     if (platform === 'feishu') return status.feishu.instances?.[0]?.lastInboundAt ?? null;
-    if (platform === 'telegram') return status.telegram.lastInboundAt;
+    if (platform === 'telegram') return status.telegram.instances?.[0]?.lastInboundAt ?? null;
     if (platform === 'nim') return status.nim.instances?.[0]?.lastInboundAt ?? null;
     if (platform === 'netease-bee') return status['netease-bee'].lastInboundAt;
     if (platform === 'qq') return status.qq.instances?.[0]?.lastInboundAt ?? null;
@@ -2498,7 +2507,7 @@ export class IMGatewayManager extends EventEmitter {
   private getLastOutboundAt(platform: Platform, status: IMGatewayStatus): number | null {
     if (platform === 'dingtalk') return status.dingtalk.instances?.[0]?.lastOutboundAt ?? null;
     if (platform === 'feishu') return status.feishu.instances?.[0]?.lastOutboundAt ?? null;
-    if (platform === 'telegram') return status.telegram.lastOutboundAt;
+    if (platform === 'telegram') return status.telegram.instances?.[0]?.lastOutboundAt ?? null;
     if (platform === 'nim') return status.nim.instances?.[0]?.lastOutboundAt ?? null;
     if (platform === 'netease-bee') return status['netease-bee'].lastOutboundAt;
     if (platform === 'qq') return status.qq.instances?.[0]?.lastOutboundAt ?? null;
@@ -2511,7 +2520,7 @@ export class IMGatewayManager extends EventEmitter {
   private getLastError(platform: Platform, status: IMGatewayStatus): string | null {
     if (platform === 'dingtalk') return status.dingtalk.instances?.[0]?.lastError ?? null;
     if (platform === 'feishu') return status.feishu.instances?.[0]?.error ?? null;
-    if (platform === 'telegram') return status.telegram.lastError;
+    if (platform === 'telegram') return status.telegram.instances?.[0]?.lastError ?? null;
     if (platform === 'nim') return status.nim.instances?.[0]?.lastError ?? null;
     if (platform === 'netease-bee') return status['netease-bee'].lastError;
     if (platform === 'qq') return status.qq.instances?.[0]?.lastError ?? null;

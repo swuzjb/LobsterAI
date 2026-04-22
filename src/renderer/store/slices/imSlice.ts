@@ -10,6 +10,8 @@ import type {
   DingTalkMultiInstanceConfig,
   DingTalkOpenClawConfig,
   DiscordOpenClawConfig,
+  EmailInstanceConfig,
+  EmailMultiInstanceConfig,
   FeishuInstanceConfig,
   FeishuMultiInstanceConfig,
   FeishuOpenClawConfig,
@@ -24,13 +26,13 @@ import type {
   QQInstanceConfig,
   QQMultiInstanceConfig,
   QQOpenClawConfig,
+  TelegramInstanceConfig,
+  TelegramMultiInstanceConfig,
   TelegramOpenClawConfig,
   WecomInstanceConfig,
   WecomMultiInstanceConfig,
   WecomOpenClawConfig,
   WeixinOpenClawConfig,
-  EmailInstanceConfig,
-  EmailMultiInstanceConfig,
 } from '../../types/im';
 import {
   DEFAULT_IM_CONFIG,
@@ -110,11 +112,30 @@ const imSlice = createSlice({
         i => i.instanceId !== action.payload
       );
     },
+    /** @deprecated Use setTelegramInstanceConfig instead */
     setTelegramOpenClawConfig: (state, action: PayloadAction<Partial<TelegramOpenClawConfig>>) => {
-      state.config.telegram = {
-        ...state.config.telegram,
-        ...action.payload,
-      };
+      const first = state.config.telegram.instances[0];
+      if (first) {
+        Object.assign(first, action.payload);
+      }
+    },
+    setTelegramInstances: (state, action: PayloadAction<TelegramInstanceConfig[]>) => {
+      state.config.telegram = { instances: action.payload };
+    },
+    setTelegramMultiInstanceConfig: (state, action: PayloadAction<TelegramMultiInstanceConfig>) => {
+      state.config.telegram = action.payload;
+    },
+    setTelegramInstanceConfig: (state, action: PayloadAction<{ instanceId: string; config: Partial<TelegramOpenClawConfig> }>) => {
+      const inst = state.config.telegram.instances.find(i => i.instanceId === action.payload.instanceId);
+      if (inst) Object.assign(inst, action.payload.config);
+    },
+    addTelegramInstance: (state, action: PayloadAction<TelegramInstanceConfig>) => {
+      state.config.telegram.instances.push(action.payload);
+    },
+    removeTelegramInstance: (state, action: PayloadAction<string>) => {
+      state.config.telegram.instances = state.config.telegram.instances.filter(
+        i => i.instanceId !== action.payload
+      );
     },
     /** @deprecated Use setQQInstanceConfig instead */
     setQQConfig: (state, action: PayloadAction<Partial<QQOpenClawConfig>>) => {
@@ -256,6 +277,11 @@ export const {
   addFeishuInstance,
   removeFeishuInstance,
   setTelegramOpenClawConfig,
+  setTelegramInstances,
+  setTelegramMultiInstanceConfig,
+  setTelegramInstanceConfig,
+  addTelegramInstance,
+  removeTelegramInstance,
   setQQConfig,
   setQQInstances,
   setQQMultiInstanceConfig,

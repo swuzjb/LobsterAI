@@ -440,6 +440,12 @@ contextBridge.exposeInMainWorld('electron', {
     setWecomInstanceConfig: (instanceId: string, config: any, options?: { syncGateway?: boolean }) =>
       ipcRenderer.invoke('im:wecom:instance:config:set', instanceId, config, options),
 
+    // Telegram Multi-Instance
+    addTelegramInstance: (name: string) => ipcRenderer.invoke('im:telegram:instance:add', name),
+    deleteTelegramInstance: (instanceId: string) => ipcRenderer.invoke('im:telegram:instance:delete', instanceId),
+    setTelegramInstanceConfig: (instanceId: string, config: any, options?: { syncGateway?: boolean }) =>
+      ipcRenderer.invoke('im:telegram:instance:config:set', instanceId, config, options),
+
     // Event listeners
     onStatusChange: (callback: (status: any) => void) => {
       const handler = (_event: any, status: any) => callback(status);

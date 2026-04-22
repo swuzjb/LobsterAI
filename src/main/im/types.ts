@@ -162,6 +162,28 @@ export interface TelegramGatewayStatus {
   lastOutboundAt: number | null;
 }
 
+// ==================== Telegram Multi-Instance Types ====================
+
+export const MAX_TELEGRAM_INSTANCES = 5;
+
+export interface TelegramInstanceConfig extends TelegramOpenClawConfig {
+  instanceId: string;
+  instanceName: string;
+}
+
+export interface TelegramInstanceStatus extends TelegramGatewayStatus {
+  instanceId: string;
+  instanceName: string;
+}
+
+export interface TelegramMultiInstanceConfig {
+  instances: TelegramInstanceConfig[];
+}
+
+export interface TelegramMultiInstanceStatus {
+  instances: TelegramInstanceStatus[];
+}
+
 // ==================== Discord Types ====================
 
 export interface DiscordOpenClawGuildConfig {
@@ -518,7 +540,7 @@ export const MAX_EMAIL_INSTANCES = 5;
 export interface IMGatewayConfig {
   dingtalk: DingTalkMultiInstanceConfig;
   feishu: FeishuMultiInstanceConfig;
-  telegram: TelegramOpenClawConfig;
+  telegram: TelegramMultiInstanceConfig;
   qq: QQMultiInstanceConfig;
   discord: DiscordOpenClawConfig;
   nim: NimMultiInstanceConfig;
@@ -541,7 +563,7 @@ export interface IMGatewayStatus {
   dingtalk: DingTalkMultiInstanceStatus;
   feishu: FeishuMultiInstanceStatus;
   qq: QQMultiInstanceStatus;
-  telegram: TelegramGatewayStatus;
+  telegram: TelegramMultiInstanceStatus;
   discord: DiscordGatewayStatus;
   nim: NimMultiInstanceStatus;
   'netease-bee': NeteaseBeeChanGatewayStatus;
@@ -759,6 +781,10 @@ export const DEFAULT_TELEGRAM_OPENCLAW_CONFIG: TelegramOpenClawConfig = {
   debug: false,
 };
 
+export const DEFAULT_TELEGRAM_MULTI_INSTANCE_CONFIG: TelegramMultiInstanceConfig = {
+  instances: [],
+};
+
 export const DEFAULT_QQ_CONFIG: QQOpenClawConfig = {
   enabled: false,
   appId: '',
@@ -832,7 +858,7 @@ export const DEFAULT_IM_SETTINGS: IMSettings = {
 export const DEFAULT_IM_CONFIG: IMGatewayConfig = {
   dingtalk: DEFAULT_DINGTALK_MULTI_INSTANCE_CONFIG,
   feishu: DEFAULT_FEISHU_MULTI_INSTANCE_CONFIG,
-  telegram: DEFAULT_TELEGRAM_OPENCLAW_CONFIG,
+  telegram: DEFAULT_TELEGRAM_MULTI_INSTANCE_CONFIG,
   qq: DEFAULT_QQ_MULTI_INSTANCE_CONFIG,
   discord: DEFAULT_DISCORD_OPENCLAW_CONFIG,
   nim: DEFAULT_NIM_MULTI_INSTANCE_CONFIG,
@@ -929,14 +955,7 @@ export const DEFAULT_WEIXIN_STATUS: WeixinGatewayStatus = {
 export const DEFAULT_IM_STATUS: IMGatewayStatus = {
   dingtalk: { instances: [] },
   feishu: { instances: [] },
-  telegram: {
-    connected: false,
-    startedAt: null,
-    lastError: null,
-    botUsername: null,
-    lastInboundAt: null,
-    lastOutboundAt: null,
-  },
+  telegram: { instances: [] },
   qq: { instances: [] },
   discord: DEFAULT_DISCORD_STATUS,
   nim: DEFAULT_NIM_MULTI_INSTANCE_STATUS,

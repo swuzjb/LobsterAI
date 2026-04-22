@@ -10,7 +10,7 @@ import {
   ProviderName,
 } from '../../shared/providers';
 import type { Agent, CoworkConfig, CoworkExecutionMode } from '../coworkStore';
-import type { DiscordOpenClawConfig, IMSettings, TelegramOpenClawConfig } from '../im/types';
+import type { DiscordOpenClawConfig, IMSettings, TelegramInstanceConfig } from '../im/types';
 import type { DingTalkInstanceConfig, EmailMultiInstanceConfig, FeishuInstanceConfig, NeteaseBeeChanConfig, NimInstanceConfig, PopoOpenClawConfig, QQInstanceConfig, WecomInstanceConfig, WeixinOpenClawConfig } from '../im/types';
 import { OpenClawSessionKeepAlive } from '../openclawSessionPolicy/constants';
 import { buildOpenClawSessionConfig } from '../openclawSessionPolicy/store';
@@ -777,7 +777,7 @@ type OpenClawConfigSyncDeps = {
   getCoworkConfig: () => CoworkConfig;
   isEnterprise: () => boolean;
   getOpenClawSessionPolicy?: () => { keepAlive: OpenClawSessionKeepAlive };
-  getTelegramOpenClawConfig?: () => TelegramOpenClawConfig | null;
+  getTelegramInstances?: () => TelegramInstanceConfig[];
   getDiscordOpenClawConfig?: () => DiscordOpenClawConfig | null;
   getDingTalkInstances?: () => DingTalkInstanceConfig[];
   getFeishuInstances?: () => FeishuInstanceConfig[];
@@ -800,7 +800,7 @@ export class OpenClawConfigSync {
   private readonly getCoworkConfig: () => CoworkConfig;
   private readonly isEnterprise: () => boolean;
   private readonly getOpenClawSessionPolicy?: () => { keepAlive: OpenClawSessionKeepAlive };
-  private readonly getTelegramOpenClawConfig?: () => TelegramOpenClawConfig | null;
+  private readonly getTelegramInstances: () => TelegramInstanceConfig[];
   private readonly getDiscordOpenClawConfig?: () => DiscordOpenClawConfig | null;
   private readonly getDingTalkInstances: () => DingTalkInstanceConfig[];
   private readonly getFeishuInstances: () => FeishuInstanceConfig[];
@@ -824,7 +824,7 @@ export class OpenClawConfigSync {
     this.getCoworkConfig = deps.getCoworkConfig;
     this.isEnterprise = deps.isEnterprise;
     this.getOpenClawSessionPolicy = deps.getOpenClawSessionPolicy;
-    this.getTelegramOpenClawConfig = deps.getTelegramOpenClawConfig;
+    this.getTelegramInstances = deps.getTelegramInstances ?? (() => []);
     this.getDiscordOpenClawConfig = deps.getDiscordOpenClawConfig;
     this.getDingTalkInstances = deps.getDingTalkInstances ?? (() => []);
     this.getFeishuInstances = deps.getFeishuInstances ?? (() => []);
@@ -1239,46 +1239,55 @@ export class OpenClawConfigSync {
       };
     }
 
-    // Sync Telegram OpenClaw channel config
-    const tgConfig = this.getTelegramOpenClawConfig?.();
-    if (tgConfig?.enabled && tgConfig.botToken) {
-      const telegramChannel: Record<string, unknown> = {
-        enabled: true,
-        botToken: '${LOBSTER_TG_BOT_TOKEN}',
-        dmPolicy: tgConfig.dmPolicy || 'open',
-        allowFrom: (() => {
-          const ids = tgConfig.allowFrom?.length ? [...tgConfig.allowFrom] : [];
-          if (tgConfig.dmPolicy === 'open' && !ids.includes('*')) ids.push('*');
-          return ids;
-        })(),
-        groupPolicy: tgConfig.groupPolicy || 'allowlist',
-        groupAllowFrom: (() => {
-          const ids = tgConfig.groupAllowFrom?.length ? [...tgConfig.groupAllowFrom] : [];
-          if (tgConfig.groupPolicy === 'open' && !ids.includes('*')) ids.push('*');
-          return ids;
-        })(),
-        groups:
-          tgConfig.groups && Object.keys(tgConfig.groups).length > 0
-            ? tgConfig.groups
-            : { '*': { requireMention: true } },
-        historyLimit: tgConfig.historyLimit || 50,
-        replyToMode: tgConfig.replyToMode || 'off',
-        linkPreview: tgConfig.linkPreview ?? true,
-        streaming: buildStreamingModeConfig(tgConfig.streaming || 'off'),
-        mediaMaxMb: tgConfig.mediaMaxMb || 5,
-      };
-      if (tgConfig.proxy) {
-        telegramChannel.proxy = tgConfig.proxy;
-      }
-      if (tgConfig.webhookUrl) {
-        telegramChannel.webhookUrl = tgConfig.webhookUrl;
-        if (tgConfig.webhookSecret) {
-          telegramChannel.webhookSecret = '${LOBSTER_TG_WEBHOOK_SECRET}';
+    // Sync Telegram OpenClaw channel config — multi-instance via accounts
+    const telegramInstances = this.getTelegramInstances();
+    const enabledTelegramInstances = telegramInstances.filter(i => i.enabled && i.botToken);
+    if (enabledTelegramInstances.length > 0) {
+      const accounts: Record<string, unknown> = {};
+      for (let idx = 0; idx < enabledTelegramInstances.length; idx++) {
+        const inst = enabledTelegramInstances[idx];
+        const tokenVar = idx === 0 ? 'LOBSTER_TG_BOT_TOKEN' : `LOBSTER_TG_BOT_TOKEN_${idx}`;
+        const webhookSecretVar = idx === 0 ? 'LOBSTER_TG_WEBHOOK_SECRET' : `LOBSTER_TG_WEBHOOK_SECRET_${idx}`;
+        const account: Record<string, unknown> = {
+          enabled: true,
+          name: inst.instanceName,
+          botToken: `\${${tokenVar}}`,
+          dmPolicy: inst.dmPolicy || 'open',
+          allowFrom: (() => {
+            const ids = inst.allowFrom?.length ? [...inst.allowFrom] : [];
+            if (inst.dmPolicy === 'open' && !ids.includes('*')) ids.push('*');
+            return ids;
+          })(),
+          groupPolicy: inst.groupPolicy || 'allowlist',
+          groupAllowFrom: (() => {
+            const ids = inst.groupAllowFrom?.length ? [...inst.groupAllowFrom] : [];
+            if (inst.groupPolicy === 'open' && !ids.includes('*')) ids.push('*');
+            return ids;
+          })(),
+          groups:
+            inst.groups && Object.keys(inst.groups).length > 0
+              ? inst.groups
+              : { '*': { requireMention: true } },
+          historyLimit: inst.historyLimit || 50,
+          replyToMode: inst.replyToMode || 'off',
+          linkPreview: inst.linkPreview ?? true,
+          streaming: buildStreamingModeConfig(inst.streaming || 'off'),
+          mediaMaxMb: inst.mediaMaxMb || 5,
+        };
+        if (inst.proxy) {
+          account.proxy = inst.proxy;
         }
+        if (inst.webhookUrl) {
+          account.webhookUrl = inst.webhookUrl;
+          if (inst.webhookSecret) {
+            account.webhookSecret = `\${${webhookSecretVar}}`;
+          }
+        }
+        accounts[inst.instanceId.slice(0, 8)] = account;
       }
       managedConfig.channels = {
         ...((managedConfig.channels as Record<string, unknown>) || {}),
-        telegram: telegramChannel,
+        telegram: { enabled: true, accounts },
       };
     }
     // When disabled, omit the channel key entirely so OpenClaw won't load the plugin.
@@ -1830,12 +1839,17 @@ export class OpenClawConfigSync {
     const mcpBridgeCfg = this.getMcpBridgeConfig?.();
     env.LOBSTER_MCP_BRIDGE_SECRET = this.getMcpBridgeSecret?.() || mcpBridgeCfg?.secret || 'unconfigured';
 
-    // Telegram
-    const tgConfig = this.getTelegramOpenClawConfig?.();
-    if (tgConfig?.enabled && tgConfig.botToken) {
-      env.LOBSTER_TG_BOT_TOKEN = tgConfig.botToken;
-      if (tgConfig.webhookSecret) {
-        env.LOBSTER_TG_WEBHOOK_SECRET = tgConfig.webhookSecret;
+    // Telegram — per-instance secrets (must match sync() indexing: enabled instances only)
+    const tgInstances = this.getTelegramInstances();
+    const enabledTelegram = tgInstances.filter(i => i.enabled && i.botToken);
+    for (let idx = 0; idx < enabledTelegram.length; idx++) {
+      const inst = enabledTelegram[idx];
+      if (idx === 0) {
+        env.LOBSTER_TG_BOT_TOKEN = inst.botToken;
+        if (inst.webhookSecret) env.LOBSTER_TG_WEBHOOK_SECRET = inst.webhookSecret;
+      } else {
+        env[`LOBSTER_TG_BOT_TOKEN_${idx}`] = inst.botToken;
+        if (inst.webhookSecret) env[`LOBSTER_TG_WEBHOOK_SECRET_${idx}`] = inst.webhookSecret;
       }
     }
 
@@ -2330,6 +2344,7 @@ export class OpenClawConfigSync {
       qq: { channel: 'qqbot', getInstances: () => this.getQQInstances() },
       nim: { channel: 'nim', getInstances: () => this.getNimInstances() },
       wecom: { channel: 'wecom', getInstances: () => this.getWecomInstances() },
+      telegram: { channel: 'telegram', getInstances: () => this.getTelegramInstances() },
     };
 
     for (const [platform, { channel, getInstances }] of Object.entries(multiInstanceChannels)) {
@@ -2368,11 +2383,6 @@ export class OpenClawConfigSync {
       channel: string;
       platform: string;
     }> = [
-      {
-        getter: () => this.getTelegramOpenClawConfig?.() ?? null,
-        channel: 'telegram',
-        platform: 'telegram',
-      },
       {
         getter: () => this.getDiscordOpenClawConfig?.() ?? null,
         channel: 'discord',

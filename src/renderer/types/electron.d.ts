@@ -503,6 +503,9 @@ interface IElectronAPI {
     addWecomInstance: (name: string) => Promise<{ success: boolean; instance?: WecomInstanceConfig; error?: string }>;
     deleteWecomInstance: (instanceId: string) => Promise<{ success: boolean; error?: string }>;
     setWecomInstanceConfig: (instanceId: string, config: any, options?: { syncGateway?: boolean }) => Promise<{ success: boolean; error?: string }>;
+    addTelegramInstance: (name: string) => Promise<{ success: boolean; instance?: TelegramInstanceConfig; error?: string }>;
+    deleteTelegramInstance: (instanceId: string) => Promise<{ success: boolean; error?: string }>;
+    setTelegramInstanceConfig: (instanceId: string, config: any, options?: { syncGateway?: boolean }) => Promise<{ success: boolean; error?: string }>;
     onStatusChange: (callback: (status: IMGatewayStatus) => void) => () => void;
     onMessageReceived: (callback: (message: IMMessage) => void) => () => void;
   };
@@ -684,7 +687,7 @@ interface EmailMultiInstanceStatus {
 interface IMGatewayConfig {
   dingtalk: DingTalkMultiInstanceConfig;
   feishu: FeishuMultiInstanceConfig;
-  telegram: TelegramOpenClawConfig;
+  telegram: TelegramMultiInstanceConfig;
   qq: QQMultiInstanceConfig;
   discord: DiscordOpenClawConfig;
   nim: NimMultiInstanceConfig;
@@ -807,6 +810,24 @@ interface TelegramOpenClawConfig {
   webhookUrl: string;
   webhookSecret: string;
   debug: boolean;
+}
+
+interface TelegramInstanceConfig extends TelegramOpenClawConfig {
+  instanceId: string;
+  instanceName: string;
+}
+
+interface TelegramInstanceStatus extends TelegramGatewayStatus {
+  instanceId: string;
+  instanceName: string;
+}
+
+interface TelegramMultiInstanceConfig {
+  instances: TelegramInstanceConfig[];
+}
+
+interface TelegramMultiInstanceStatus {
+  instances: TelegramInstanceStatus[];
 }
 
 interface DiscordOpenClawGuildConfig {
@@ -988,7 +1009,7 @@ interface IMGatewayStatus {
   dingtalk: DingTalkMultiInstanceStatus;
   feishu: FeishuMultiInstanceStatus;
   qq: QQMultiInstanceStatus;
-  telegram: TelegramGatewayStatus;
+  telegram: TelegramMultiInstanceStatus;
   discord: DiscordGatewayStatus;
   nim: NimMultiInstanceStatus;
   'netease-bee': NeteaseBeeChanGatewayStatus;

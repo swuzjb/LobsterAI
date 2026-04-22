@@ -22,6 +22,7 @@ import {
   DEFAULT_QQ_CONFIG,
   DEFAULT_QQ_MULTI_INSTANCE_CONFIG,
   DEFAULT_TELEGRAM_OPENCLAW_CONFIG,
+  DEFAULT_TELEGRAM_MULTI_INSTANCE_CONFIG,
   DEFAULT_WECOM_CONFIG,
   DEFAULT_WECOM_MULTI_INSTANCE_CONFIG,
   DEFAULT_WEIXIN_CONFIG,
@@ -45,6 +46,8 @@ import {
   QQInstanceConfig,
   QQMultiInstanceConfig,
   TelegramOpenClawConfig,
+  TelegramInstanceConfig,
+  TelegramMultiInstanceConfig,
   WecomInstanceConfig,
   WecomMultiInstanceConfig,
   WecomOpenClawConfig,
@@ -241,6 +244,59 @@ export class IMStore {
           this.db.prepare('DELETE FROM im_config WHERE key = ?').run('telegram');
           console.log('[IMStore] Migrated old Telegram config to OpenClaw format');
         }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    // Migrate single telegramOpenClaw config to multi-instance format
+    const oldTelegramSingleRow = this.db
+      .prepare('SELECT value FROM im_config WHERE key = ?')
+      .get('telegramOpenClaw') as { value: string } | undefined;
+    const existingTelegramInstances = this.db
+      .prepare('SELECT key FROM im_config WHERE key LIKE ?')
+      .all('telegram:%') as Array<{ key: string }>;
+    if (oldTelegramSingleRow && !existingTelegramInstances.length) {
+      try {
+        const oldConfig = JSON.parse(oldTelegramSingleRow.value) as TelegramOpenClawConfig;
+        const instanceId = randomUUID();
+        const instanceConfig: TelegramInstanceConfig = {
+          ...DEFAULT_TELEGRAM_OPENCLAW_CONFIG,
+          ...oldConfig,
+          instanceId,
+          instanceName: 'Telegram Bot 1',
+        };
+        const now = Date.now();
+        this.db
+          .prepare(
+            'INSERT INTO im_config (key, value, updated_at) VALUES (?, ?, ?)',
+          )
+          .run(`telegram:${instanceId}`, JSON.stringify(instanceConfig), now);
+        this.db.prepare('DELETE FROM im_config WHERE key = ?').run('telegramOpenClaw');
+        // Migrate session mappings
+        this.db
+          .prepare('UPDATE im_session_mappings SET platform = ? WHERE platform = ?')
+          .run(`telegram:${instanceId}`, 'telegram');
+        // Migrate agent bindings
+        const settingsRow = this.db
+          .prepare('SELECT value FROM im_config WHERE key = ?')
+          .get('settings') as { value: string } | undefined;
+        if (settingsRow) {
+          try {
+            const settings = JSON.parse(settingsRow.value) as IMSettings;
+            if (settings.platformAgentBindings?.['telegram']) {
+              settings.platformAgentBindings[`telegram:${instanceId}`] =
+                settings.platformAgentBindings['telegram'];
+              delete settings.platformAgentBindings['telegram'];
+              this.db
+                .prepare('UPDATE im_config SET value = ?, updated_at = ? WHERE key = ?')
+                .run(JSON.stringify(settings), now, 'settings');
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+        console.log('[IMStore] Migrated single Telegram config to multi-instance format');
       } catch {
         // Ignore parse errors
       }
@@ -653,9 +709,7 @@ export class IMStore {
 
   getConfig(): IMGatewayConfig {
     const dingtalkMulti = this.getDingTalkMultiInstanceConfig();
-    const telegram =
-      this.getConfigValue<TelegramOpenClawConfig>('telegramOpenClaw') ??
-      DEFAULT_TELEGRAM_OPENCLAW_CONFIG;
+    const telegramMulti = this.getTelegramMultiInstanceConfig();
     const discord =
       this.getConfigValue<DiscordOpenClawConfig>('discordOpenClaw') ??
       DEFAULT_DISCORD_OPENCLAW_CONFIG;
@@ -684,7 +738,7 @@ export class IMStore {
     return {
       dingtalk: dingtalkMulti,
       feishu: feishuMulti,
-      telegram: resolveEnabled(telegram, DEFAULT_TELEGRAM_OPENCLAW_CONFIG),
+      telegram: telegramMulti,
       discord: resolveEnabled(discord, DEFAULT_DISCORD_OPENCLAW_CONFIG),
       nim: nimMulti,
       'netease-bee': resolveEnabled(neteaseBeeChan, DEFAULT_NETEASE_BEE_CONFIG),
@@ -705,7 +759,7 @@ export class IMStore {
       this.setFeishuMultiInstanceConfig(config.feishu);
     }
     if (config.telegram) {
-      this.setTelegramOpenClawConfig(config.telegram);
+      this.setTelegramMultiInstanceConfig(config.telegram);
     }
     if (config.discord) {
       this.setDiscordOpenClawConfig(config.discord);
@@ -1018,14 +1072,72 @@ export class IMStore {
 
   // ==================== Telegram OpenClaw Config ====================
 
+  /** @deprecated Use getTelegramMultiInstanceConfig() or getTelegramInstances() instead */
   getTelegramOpenClawConfig(): TelegramOpenClawConfig {
     const stored = this.getConfigValue<TelegramOpenClawConfig>('telegramOpenClaw');
     return { ...DEFAULT_TELEGRAM_OPENCLAW_CONFIG, ...stored };
   }
 
+  /** @deprecated Use setTelegramInstanceConfig() instead */
   setTelegramOpenClawConfig(config: Partial<TelegramOpenClawConfig>): void {
     const current = this.getTelegramOpenClawConfig();
     this.setConfigValue('telegramOpenClaw', { ...current, ...config });
+  }
+
+  // ==================== Telegram Multi-Instance Config ====================
+
+  getTelegramInstances(): TelegramInstanceConfig[] {
+    const rows = this.db
+      .prepare('SELECT key, value FROM im_config WHERE key LIKE ?')
+      .all('telegram:%') as Array<{ key: string; value: string }>;
+    if (!rows.length) return [];
+    const instances: TelegramInstanceConfig[] = [];
+    for (const row of rows) {
+      try {
+        const config = JSON.parse(row.value) as TelegramInstanceConfig;
+        instances.push({ ...DEFAULT_TELEGRAM_OPENCLAW_CONFIG, ...config });
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    return instances;
+  }
+
+  getTelegramInstanceConfig(instanceId: string): TelegramInstanceConfig | null {
+    const stored = this.getConfigValue<TelegramInstanceConfig>(`telegram:${instanceId}`);
+    if (!stored) return null;
+    return { ...DEFAULT_TELEGRAM_OPENCLAW_CONFIG, ...stored };
+  }
+
+  setTelegramInstanceConfig(instanceId: string, config: Partial<TelegramInstanceConfig>): void {
+    const current = this.getTelegramInstanceConfig(instanceId);
+    if (current) {
+      this.setConfigValue(`telegram:${instanceId}`, { ...current, ...config });
+    } else {
+      this.setConfigValue(`telegram:${instanceId}`, {
+        ...DEFAULT_TELEGRAM_OPENCLAW_CONFIG,
+        instanceId,
+        instanceName: config.instanceName || 'Telegram Bot',
+        ...config,
+      });
+    }
+  }
+
+  deleteTelegramInstance(instanceId: string): void {
+    this.db.prepare('DELETE FROM im_config WHERE key = ?').run(`telegram:${instanceId}`);
+    this.db.prepare('DELETE FROM im_session_mappings WHERE platform = ?').run(`telegram:${instanceId}`);
+  }
+
+  getTelegramMultiInstanceConfig(): TelegramMultiInstanceConfig {
+    const instances = this.getTelegramInstances();
+    if (instances.length === 0) return DEFAULT_TELEGRAM_MULTI_INSTANCE_CONFIG;
+    return { instances };
+  }
+
+  setTelegramMultiInstanceConfig(config: TelegramMultiInstanceConfig): void {
+    for (const inst of config.instances) {
+      this.setTelegramInstanceConfig(inst.instanceId, inst);
+    }
   }
 
   // ==================== QQ Multi-Instance Config ====================
@@ -1304,7 +1416,7 @@ export class IMStore {
     const hasDingTalk =
       config.dingtalk?.instances?.some(i => !!(i.clientId && i.clientSecret)) ?? false;
     const hasFeishu = config.feishu?.instances?.some(i => !!(i.appId && i.appSecret)) ?? false;
-    const hasTelegram = !!config.telegram.botToken;
+    const hasTelegram = config.telegram?.instances?.some(i => !!i.botToken) ?? false;
     const hasDiscord = !!config.discord.botToken;
     const hasNim = config.nim?.instances?.some(i => !!(i.nimToken || (i.appKey && i.account && i.token))) ?? false;
     const hasNeteaseBeeChan = !!(config['netease-bee']?.clientId && config['netease-bee']?.secret);
