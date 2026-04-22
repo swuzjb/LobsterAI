@@ -226,7 +226,7 @@ class SkillService {
   async fetchMarketplaceSkills(): Promise<{ skills: MarketplaceSkill[]; tags: MarketTag[] }> {
     try {
       const result = await window.electron.skills.fetchMarketplace();
-      if (!result.success) {
+      if (!result.success || !result.data) {
         throw new Error(result.error || 'Failed to fetch');
       }
       const json = JSON.parse(result.data);
