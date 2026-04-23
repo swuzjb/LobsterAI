@@ -36,6 +36,12 @@ const MEMORY_NEAR_DUPLICATE_MIN_SCORE = 0.82;
 const MEMORY_PROCEDURAL_TEXT_RE = /(执行以下命令|run\s+(?:the\s+)?following\s+command|\b(?:cd|npm|pnpm|yarn|node|python|bash|sh|git|curl|wget)\b|\$[A-Z_][A-Z0-9_]*|&&|--[a-z0-9-]+|\/tmp\/|\.sh\b|\.bat\b|\.ps1\b)/i;
 const MEMORY_ASSISTANT_STYLE_TEXT_RE = /^(?:使用|use)\s+[A-Za-z0-9._-]+\s*(?:技能|skill)/i;
 
+const DEFAULT_EMBEDDING_ENABLED = false;
+const DEFAULT_EMBEDDING_PROVIDER = 'local';
+const DEFAULT_EMBEDDING_MODEL = 'hf:ggml-org/embeddinggemma-300m-qat-q8_0-GGUF/embeddinggemma-300m-qat-Q8_0.gguf';
+const DEFAULT_EMBEDDING_LOCAL_MODEL_PATH = '';
+const DEFAULT_EMBEDDING_VECTOR_WEIGHT = 0.7;
+
 // Regexes and helper inlined from the removed coworkMemoryExtractor module.
 // Used only by shouldAutoDeleteMemoryText() during startup memory cleanup.
 const CHINESE_QUESTION_PREFIX_RE = /^(?:请问|问下|问一下|是否|能否|可否|为什么|为何|怎么|如何|谁|什么|哪(?:里|儿|个)?|几|多少|要不要|会不会|是不是|能不能|可不可以|行不行|对不对|好不好)/u;
@@ -75,6 +81,13 @@ function clampMemoryUserMemoriesMaxItems(value: number): number {
     MIN_MEMORY_USER_MEMORIES_MAX_ITEMS,
     Math.min(MAX_MEMORY_USER_MEMORIES_MAX_ITEMS, Math.floor(value))
   );
+}
+
+function parseEmbeddingVectorWeight(value: string | undefined): number {
+  if (!value) return DEFAULT_EMBEDDING_VECTOR_WEIGHT;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_EMBEDDING_VECTOR_WEIGHT;
+  return Math.max(0, Math.min(1, parsed));
 }
 
 function normalizeMemoryText(value: string): string {
@@ -469,6 +482,11 @@ export interface CoworkConfig {
   memoryGuardLevel: CoworkMemoryGuardLevel;
   memoryUserMemoriesMaxItems: number;
   skipMissedJobs: boolean;
+  embeddingEnabled: boolean;
+  embeddingProvider: string;
+  embeddingModel: string;
+  embeddingLocalModelPath: string;
+  embeddingVectorWeight: number;
 }
 
 export type CoworkConfigUpdate = Partial<Pick<
@@ -482,6 +500,11 @@ CoworkConfig,
   | 'memoryGuardLevel'
   | 'memoryUserMemoriesMaxItems'
   | 'skipMissedJobs'
+  | 'embeddingEnabled'
+  | 'embeddingProvider'
+  | 'embeddingModel'
+  | 'embeddingLocalModelPath'
+  | 'embeddingVectorWeight'
 >>;
 
 
@@ -1047,6 +1070,11 @@ export class CoworkStore {
       'memoryGuardLevel',
       'memoryUserMemoriesMaxItems',
       'skipMissedJobs',
+      'embeddingEnabled',
+      'embeddingProvider',
+      'embeddingModel',
+      'embeddingLocalModelPath',
+      'embeddingVectorWeight',
     ] as const;
     const configRows = this.getAll<{ key: string; value: string }>(
       `SELECT key, value FROM cowork_config WHERE key IN (${configKeys.map(() => '?').join(', ')})`,
@@ -1073,6 +1101,11 @@ export class CoworkStore {
         Number(cfg.get('memoryUserMemoriesMaxItems')),
       ),
       skipMissedJobs: parseBooleanConfig(cfg.get('skipMissedJobs'), true),
+      embeddingEnabled: parseBooleanConfig(cfg.get('embeddingEnabled'), DEFAULT_EMBEDDING_ENABLED),
+      embeddingProvider: cfg.get('embeddingProvider') || DEFAULT_EMBEDDING_PROVIDER,
+      embeddingModel: cfg.get('embeddingModel') || DEFAULT_EMBEDDING_MODEL,
+      embeddingLocalModelPath: cfg.get('embeddingLocalModelPath') || DEFAULT_EMBEDDING_LOCAL_MODEL_PATH,
+      embeddingVectorWeight: parseEmbeddingVectorWeight(cfg.get('embeddingVectorWeight')),
     };
   }
 
@@ -1204,6 +1237,76 @@ export class CoworkStore {
       `,
         )
         .run(config.skipMissedJobs ? '1' : '0', now);
+    }
+
+    if (config.embeddingEnabled !== undefined) {
+      this.db
+        .prepare(
+          `
+        INSERT INTO cowork_config (key, value, updated_at)
+        VALUES ('embeddingEnabled', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = excluded.updated_at
+      `,
+        )
+        .run(config.embeddingEnabled ? '1' : '0', now);
+    }
+
+    if (config.embeddingProvider !== undefined) {
+      this.db
+        .prepare(
+          `
+        INSERT INTO cowork_config (key, value, updated_at)
+        VALUES ('embeddingProvider', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = excluded.updated_at
+      `,
+        )
+        .run(String(config.embeddingProvider), now);
+    }
+
+    if (config.embeddingModel !== undefined) {
+      this.db
+        .prepare(
+          `
+        INSERT INTO cowork_config (key, value, updated_at)
+        VALUES ('embeddingModel', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = excluded.updated_at
+      `,
+        )
+        .run(String(config.embeddingModel), now);
+    }
+
+    if (config.embeddingLocalModelPath !== undefined) {
+      this.db
+        .prepare(
+          `
+        INSERT INTO cowork_config (key, value, updated_at)
+        VALUES ('embeddingLocalModelPath', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = excluded.updated_at
+      `,
+        )
+        .run(String(config.embeddingLocalModelPath), now);
+    }
+
+    if (config.embeddingVectorWeight !== undefined) {
+      this.db
+        .prepare(
+          `
+        INSERT INTO cowork_config (key, value, updated_at)
+        VALUES ('embeddingVectorWeight', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = excluded.updated_at
+      `,
+        )
+        .run(String(Math.max(0, Math.min(1, config.embeddingVectorWeight))), now);
     }
   }
 

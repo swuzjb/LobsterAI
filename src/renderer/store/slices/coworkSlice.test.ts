@@ -23,6 +23,11 @@ test('setConfig preserves loaded OpenClaw session policy', () => {
     memoryGuardLevel: 'strict',
     memoryUserMemoriesMaxItems: 12,
     skipMissedJobs: false,
+    embeddingEnabled: false,
+    embeddingProvider: 'local',
+    embeddingModel: '',
+    embeddingLocalModelPath: '',
+    embeddingVectorWeight: 0.7,
     openClawSessionPolicy: {
       keepAlive: '365d',
     },

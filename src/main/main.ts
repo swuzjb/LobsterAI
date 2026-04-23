@@ -3542,6 +3542,11 @@ if (!gotTheLock) {
     memoryGuardLevel?: 'strict' | 'standard' | 'relaxed';
     memoryUserMemoriesMaxItems?: number;
     skipMissedJobs?: boolean;
+    embeddingEnabled?: boolean;
+    embeddingProvider?: string;
+    embeddingModel?: string;
+    embeddingLocalModelPath?: string;
+    embeddingVectorWeight?: number;
   }) => {
     try {
       const normalizedExecutionMode =
@@ -3575,6 +3580,23 @@ if (!gotTheLock) {
       const normalizedSkipMissedJobs = typeof config.skipMissedJobs === 'boolean'
         ? config.skipMissedJobs
         : undefined;
+      const normalizedEmbeddingEnabled = typeof config.embeddingEnabled === 'boolean'
+        ? config.embeddingEnabled
+        : undefined;
+      const normalizedEmbeddingProvider = typeof config.embeddingProvider === 'string'
+        && (config.embeddingProvider === 'local' || config.embeddingProvider === 'auto')
+        ? config.embeddingProvider
+        : undefined;
+      const normalizedEmbeddingModel = typeof config.embeddingModel === 'string'
+        ? config.embeddingModel.trim()
+        : undefined;
+      const normalizedEmbeddingLocalModelPath = typeof config.embeddingLocalModelPath === 'string'
+        ? config.embeddingLocalModelPath.trim()
+        : undefined;
+      const normalizedEmbeddingVectorWeight = typeof config.embeddingVectorWeight === 'number'
+        && Number.isFinite(config.embeddingVectorWeight)
+        ? Math.max(0, Math.min(1, config.embeddingVectorWeight))
+        : undefined;
       const normalizedConfig: Parameters<CoworkStore['setConfig']>[0] = {
         ...config,
         executionMode: normalizedExecutionMode,
@@ -3585,6 +3607,11 @@ if (!gotTheLock) {
         memoryGuardLevel: normalizedMemoryGuardLevel,
         memoryUserMemoriesMaxItems: normalizedMemoryUserMemoriesMaxItems,
         skipMissedJobs: normalizedSkipMissedJobs,
+        embeddingEnabled: normalizedEmbeddingEnabled,
+        embeddingProvider: normalizedEmbeddingProvider,
+        embeddingModel: normalizedEmbeddingModel,
+        embeddingLocalModelPath: normalizedEmbeddingLocalModelPath,
+        embeddingVectorWeight: normalizedEmbeddingVectorWeight,
       };
       const previousConfig = getCoworkStore().getConfig();
       const previousWorkingDir = previousConfig.workingDirectory;
@@ -3613,6 +3640,11 @@ if (!gotTheLock) {
 
       const shouldSyncOpenClawConfig = normalizedExecutionMode !== undefined
         || normalizedAgentEngine !== undefined
+        || normalizedEmbeddingEnabled !== undefined
+        || normalizedEmbeddingProvider !== undefined
+        || normalizedEmbeddingModel !== undefined
+        || normalizedEmbeddingLocalModelPath !== undefined
+        || normalizedEmbeddingVectorWeight !== undefined
         || (normalizedConfig.workingDirectory !== undefined && normalizedConfig.workingDirectory !== previousWorkingDir);
       if (shouldSyncOpenClawConfig) {
         const syncResult = await syncOpenClawConfig({

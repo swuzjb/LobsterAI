@@ -1086,6 +1086,23 @@ export class OpenClawConfigSync {
             mode: sandboxMode,
           },
           ...(workspaceDir ? { workspace: path.resolve(workspaceDir) } : {}),
+          ...(coworkConfig.embeddingEnabled ? {
+            memorySearch: {
+              enabled: true,
+              provider: coworkConfig.embeddingProvider || 'local',
+              ...(coworkConfig.embeddingModel ? { model: coworkConfig.embeddingModel } : {}),
+              ...(coworkConfig.embeddingProvider === 'local' && coworkConfig.embeddingLocalModelPath
+                ? { local: { modelPath: coworkConfig.embeddingLocalModelPath } }
+                : {}),
+              query: {
+                hybrid: {
+                  vectorWeight: coworkConfig.embeddingVectorWeight ?? 0.7,
+                },
+              },
+            },
+          } : {
+            memorySearch: { enabled: false },
+          }),
         },
         ...this.buildAgentsList(primaryModel, this.engineManager.getStateDir()),
       },

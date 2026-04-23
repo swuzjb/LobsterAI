@@ -805,6 +805,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [coworkMemoryEnabled, setCoworkMemoryEnabled] = useState<boolean>(coworkConfig.memoryEnabled ?? true);
   const [coworkMemoryLlmJudgeEnabled, setCoworkMemoryLlmJudgeEnabled] = useState<boolean>(coworkConfig.memoryLlmJudgeEnabled ?? false);
   const [skipMissedJobs, setSkipMissedJobs] = useState<boolean>(coworkConfig.skipMissedJobs ?? true);
+  const [embeddingEnabled, setEmbeddingEnabled] = useState<boolean>(coworkConfig.embeddingEnabled ?? false);
+  const [embeddingProvider, setEmbeddingProvider] = useState<string>(coworkConfig.embeddingProvider ?? 'local');
+  const [embeddingModel, setEmbeddingModel] = useState<string>(coworkConfig.embeddingModel ?? '');
+  const [embeddingLocalModelPath, setEmbeddingLocalModelPath] = useState<string>(coworkConfig.embeddingLocalModelPath ?? '');
+  const [embeddingVectorWeight, setEmbeddingVectorWeight] = useState<number>(coworkConfig.embeddingVectorWeight ?? 0.7);
+  const [showEmbeddingAdvanced, setShowEmbeddingAdvanced] = useState<boolean>(false);
   const [openClawSessionKeepAlive, setOpenClawSessionKeepAlive] = useState<OpenClawSessionKeepAlive>(
     coworkConfig.openClawSessionPolicy?.keepAlive || OpenClawSessionKeepAliveValues.ThirtyDays,
   );
@@ -826,6 +832,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     setCoworkMemoryEnabled(coworkConfig.memoryEnabled ?? true);
     setCoworkMemoryLlmJudgeEnabled(coworkConfig.memoryLlmJudgeEnabled ?? false);
     setSkipMissedJobs(coworkConfig.skipMissedJobs ?? true);
+    setEmbeddingEnabled(coworkConfig.embeddingEnabled ?? false);
+    setEmbeddingProvider(coworkConfig.embeddingProvider ?? 'local');
+    setEmbeddingModel(coworkConfig.embeddingModel ?? '');
+    setEmbeddingLocalModelPath(coworkConfig.embeddingLocalModelPath ?? '');
+    setEmbeddingVectorWeight(coworkConfig.embeddingVectorWeight ?? 0.7);
     setOpenClawSessionKeepAlive(coworkConfig.openClawSessionPolicy?.keepAlive || OpenClawSessionKeepAliveValues.ThirtyDays);
   }, [
     coworkConfig.agentEngine,
@@ -833,7 +844,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     coworkConfig.memoryLlmJudgeEnabled,
     coworkConfig.openClawSessionPolicy?.keepAlive,
     coworkConfig.skipMissedJobs,
-    coworkConfig.openClawSessionPolicy?.keepAlive,
+    coworkConfig.embeddingEnabled,
+    coworkConfig.embeddingProvider,
+    coworkConfig.embeddingModel,
+    coworkConfig.embeddingLocalModelPath,
+    coworkConfig.embeddingVectorWeight,
   ]);
 
   useEffect(() => () => {
@@ -1467,7 +1482,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     || coworkMemoryEnabled !== coworkConfig.memoryEnabled
     || coworkMemoryLlmJudgeEnabled !== coworkConfig.memoryLlmJudgeEnabled
     || skipMissedJobs !== (coworkConfig.skipMissedJobs ?? true)
-    || openClawSessionKeepAlive !== (coworkConfig.openClawSessionPolicy?.keepAlive || OpenClawSessionKeepAliveValues.ThirtyDays);
+    || openClawSessionKeepAlive !== (coworkConfig.openClawSessionPolicy?.keepAlive || OpenClawSessionKeepAliveValues.ThirtyDays)
+    || embeddingEnabled !== (coworkConfig.embeddingEnabled ?? false)
+    || embeddingProvider !== (coworkConfig.embeddingProvider ?? 'local')
+    || embeddingModel !== (coworkConfig.embeddingModel ?? '')
+    || embeddingLocalModelPath !== (coworkConfig.embeddingLocalModelPath ?? '')
+    || embeddingVectorWeight !== (coworkConfig.embeddingVectorWeight ?? 0.7);
   const isOpenClawAgentEngine = coworkAgentEngine === 'openclaw';
 
   const openClawProgressPercent = useMemo(() => {
@@ -1818,6 +1838,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
           memoryEnabled: coworkMemoryEnabled,
           memoryLlmJudgeEnabled: coworkMemoryLlmJudgeEnabled,
           skipMissedJobs,
+          embeddingEnabled,
+          embeddingProvider,
+          embeddingModel,
+          embeddingLocalModelPath,
+          embeddingVectorWeight,
         });
         if (!updated) {
           throw new Error(i18nService.t('coworkConfigSaveFailed'));
@@ -3037,6 +3062,126 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Section 3: Embedding / Vector Memory Search */}
+            <div className="space-y-3 rounded-xl border px-4 py-4 border-border">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-foreground">
+                    {i18nService.t('coworkMemoryEmbeddingEnabled')}
+                  </div>
+                  <div className="text-xs text-secondary">
+                    {i18nService.t('coworkMemoryEmbeddingEnabledHint')}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={embeddingEnabled}
+                  onClick={() => setEmbeddingEnabled((prev) => !prev)}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
+                    embeddingEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      embeddingEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {embeddingEnabled && (
+                <div className="space-y-3 pt-2">
+                  {/* Provider dropdown */}
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">
+                      {i18nService.t('coworkMemoryEmbeddingProvider')}
+                    </label>
+                    <select
+                      value={embeddingProvider}
+                      onChange={(e) => setEmbeddingProvider(e.target.value)}
+                      className="w-full rounded-lg border px-3 py-2 text-sm border-border bg-surface"
+                    >
+                      <option value="local">{i18nService.t('coworkMemoryEmbeddingProviderLocal')}</option>
+                      <option value="auto">{i18nService.t('coworkMemoryEmbeddingProviderAuto')}</option>
+                    </select>
+                    <div className="text-xs text-secondary mt-1">
+                      {i18nService.t('coworkMemoryEmbeddingProviderHint')}
+                    </div>
+                  </div>
+
+                  {/* Model ID */}
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">
+                      {i18nService.t('coworkMemoryEmbeddingModel')}
+                    </label>
+                    <input
+                      type="text"
+                      value={embeddingModel}
+                      onChange={(e) => setEmbeddingModel(e.target.value)}
+                      placeholder="hf:ggml-org/embeddinggemma-300m-qat-q8_0-GGUF/embeddinggemma-300m-qat-Q8_0.gguf"
+                      className="w-full rounded-lg border px-3 py-2 text-sm border-border bg-surface font-mono"
+                    />
+                    <div className="text-xs text-secondary mt-1">
+                      {i18nService.t('coworkMemoryEmbeddingModelHint')}
+                    </div>
+                  </div>
+
+                  {/* Collapsible advanced section */}
+                  <button
+                    type="button"
+                    onClick={() => setShowEmbeddingAdvanced((prev) => !prev)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {showEmbeddingAdvanced
+                      ? i18nService.t('coworkMemoryAdvancedHide')
+                      : i18nService.t('coworkMemoryAdvancedShow')}
+                  </button>
+
+                  {showEmbeddingAdvanced && (
+                    <div className="space-y-3">
+                      {/* Local model path (only relevant when provider=local) */}
+                      {embeddingProvider === 'local' && (
+                        <div>
+                          <label className="block text-xs font-medium text-foreground mb-1">
+                            {i18nService.t('coworkMemoryEmbeddingLocalModelPath')}
+                          </label>
+                          <input
+                            type="text"
+                            value={embeddingLocalModelPath}
+                            onChange={(e) => setEmbeddingLocalModelPath(e.target.value)}
+                            className="w-full rounded-lg border px-3 py-2 text-sm border-border bg-surface font-mono"
+                          />
+                          <div className="text-xs text-secondary mt-1">
+                            {i18nService.t('coworkMemoryEmbeddingLocalModelPathHint')}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Vector weight slider */}
+                      <div>
+                        <label className="block text-xs font-medium text-foreground mb-1">
+                          {i18nService.t('coworkMemoryEmbeddingWeight')}: {embeddingVectorWeight.toFixed(2)}
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={embeddingVectorWeight}
+                          onChange={(e) => setEmbeddingVectorWeight(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <div className="text-xs text-secondary mt-1">
+                          {i18nService.t('coworkMemoryEmbeddingWeightHint')}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
           </div>
