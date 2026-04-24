@@ -22,7 +22,7 @@ import {
   rejectPairingRequest,
 } from './im/imPairingStore';
 import { pollNimQrLogin, startNimQrLogin } from './im/nimQrLoginService';
-import type { DingTalkInstanceConfig, EmailMultiInstanceConfig, FeishuInstanceConfig, NimInstanceConfig, Platform, QQInstanceConfig, WecomInstanceConfig } from './im/types';
+import type { DingTalkInstanceConfig, DiscordInstanceConfig, EmailMultiInstanceConfig, FeishuInstanceConfig, NimInstanceConfig, Platform, QQInstanceConfig, TelegramInstanceConfig, WecomInstanceConfig } from './im/types';
 import { registerNimQrLoginHandlers } from './ipcHandlers/nimQrLogin';
 import {
   getCronJobService,
@@ -3532,6 +3532,38 @@ if (!gotTheLock) {
       };
     }
   });
+
+  const VALID_EMBEDDING_PROVIDERS = ['local', 'openai', 'gemini', 'voyage', 'mistral', 'ollama'] as const;
+
+  function normalizeEmbeddingConfig(config: {
+    embeddingEnabled?: boolean;
+    embeddingProvider?: string;
+    embeddingModel?: string;
+    embeddingLocalModelPath?: string;
+    embeddingVectorWeight?: number;
+    embeddingRemoteBaseUrl?: string;
+    embeddingRemoteApiKey?: string;
+  }) {
+    return {
+      embeddingEnabled: typeof config.embeddingEnabled === 'boolean'
+        ? config.embeddingEnabled : undefined,
+      embeddingProvider: typeof config.embeddingProvider === 'string'
+        && (VALID_EMBEDDING_PROVIDERS as readonly string[]).includes(config.embeddingProvider)
+        ? config.embeddingProvider : undefined,
+      embeddingModel: typeof config.embeddingModel === 'string'
+        ? config.embeddingModel.trim() : undefined,
+      embeddingLocalModelPath: typeof config.embeddingLocalModelPath === 'string'
+        ? config.embeddingLocalModelPath.trim() : undefined,
+      embeddingVectorWeight: typeof config.embeddingVectorWeight === 'number'
+        && Number.isFinite(config.embeddingVectorWeight)
+        ? Math.max(0, Math.min(1, config.embeddingVectorWeight)) : undefined,
+      embeddingRemoteBaseUrl: typeof config.embeddingRemoteBaseUrl === 'string'
+        ? config.embeddingRemoteBaseUrl.trim() : undefined,
+      embeddingRemoteApiKey: typeof config.embeddingRemoteApiKey === 'string'
+        ? config.embeddingRemoteApiKey.trim() : undefined,
+    };
+  }
+
   ipcMain.handle('cowork:config:set', async (_event, config: {
     workingDirectory?: string;
     executionMode?: 'auto' | 'local' | 'sandbox';
@@ -3542,6 +3574,13 @@ if (!gotTheLock) {
     memoryGuardLevel?: 'strict' | 'standard' | 'relaxed';
     memoryUserMemoriesMaxItems?: number;
     skipMissedJobs?: boolean;
+    embeddingEnabled?: boolean;
+    embeddingProvider?: string;
+    embeddingModel?: string;
+    embeddingLocalModelPath?: string;
+    embeddingVectorWeight?: number;
+    embeddingRemoteBaseUrl?: string;
+    embeddingRemoteApiKey?: string;
   }) => {
     try {
       const normalizedExecutionMode =
@@ -3575,6 +3614,7 @@ if (!gotTheLock) {
       const normalizedSkipMissedJobs = typeof config.skipMissedJobs === 'boolean'
         ? config.skipMissedJobs
         : undefined;
+      const normalizedEmbedding = normalizeEmbeddingConfig(config);
       const normalizedConfig: Parameters<CoworkStore['setConfig']>[0] = {
         ...config,
         executionMode: normalizedExecutionMode,
@@ -3585,6 +3625,7 @@ if (!gotTheLock) {
         memoryGuardLevel: normalizedMemoryGuardLevel,
         memoryUserMemoriesMaxItems: normalizedMemoryUserMemoriesMaxItems,
         skipMissedJobs: normalizedSkipMissedJobs,
+        ...normalizedEmbedding,
       };
       const previousConfig = getCoworkStore().getConfig();
       const previousWorkingDir = previousConfig.workingDirectory;
@@ -3613,6 +3654,7 @@ if (!gotTheLock) {
 
       const shouldSyncOpenClawConfig = normalizedExecutionMode !== undefined
         || normalizedAgentEngine !== undefined
+        || Object.values(normalizedEmbedding).some(v => v !== undefined)
         || (normalizedConfig.workingDirectory !== undefined && normalizedConfig.workingDirectory !== previousWorkingDir);
       if (shouldSyncOpenClawConfig) {
         const syncResult = await syncOpenClawConfig({
@@ -3960,7 +4002,8 @@ if (!gotTheLock) {
 
       if (instance.transport === 'imap') {
         // Test IMAP connection using node-imap
-        let Imap: any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic require with no type definitions
+        let Imap: new (config: Record<string, unknown>) => any;
         try {
           Imap = require('imap');
         } catch {
@@ -4397,7 +4440,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('im:telegram:instance:config:set', async (_event, instanceId: string, config: any, options?: { syncGateway?: boolean }) => {
+  ipcMain.handle('im:telegram:instance:config:set', async (_event, instanceId: string, config: Partial<TelegramInstanceConfig>, options?: { syncGateway?: boolean }) => {
     try {
       getIMGatewayManager().getIMStore().setTelegramInstanceConfig(instanceId, config);
       if (options?.syncGateway && getOpenClawEngineManager().getStatus().phase === 'running') {
@@ -4447,7 +4490,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('im:discord:instance:config:set', async (_event, instanceId: string, config: any, options?: { syncGateway?: boolean }) => {
+  ipcMain.handle('im:discord:instance:config:set', async (_event, instanceId: string, config: Partial<DiscordInstanceConfig>, options?: { syncGateway?: boolean }) => {
     try {
       getIMGatewayManager().getIMStore().setDiscordInstanceConfig(instanceId, config);
       if (options?.syncGateway && getOpenClawEngineManager().getStatus().phase === 'running') {

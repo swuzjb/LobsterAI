@@ -1086,6 +1086,30 @@ export class OpenClawConfigSync {
             mode: sandboxMode,
           },
           ...(workspaceDir ? { workspace: path.resolve(workspaceDir) } : {}),
+          ...(coworkConfig.embeddingEnabled ? {
+            memorySearch: {
+              enabled: true,
+              provider: (['openai', 'gemini', 'voyage', 'mistral', 'ollama'].includes(coworkConfig.embeddingProvider)
+                ? coworkConfig.embeddingProvider
+                : 'openai'),
+              ...(coworkConfig.embeddingModel ? { model: coworkConfig.embeddingModel } : {}),
+              remote: {
+                ...(coworkConfig.embeddingRemoteBaseUrl ? { baseUrl: coworkConfig.embeddingRemoteBaseUrl } : {}),
+                ...(coworkConfig.embeddingRemoteApiKey ? { apiKey: coworkConfig.embeddingRemoteApiKey } : {}),
+              },
+              store: {
+                // Use trigram tokenizer for FTS5 — unicode61 (the openclaw default)
+                // cannot tokenize CJK characters, so Chinese/Japanese/Korean memory
+                // content is invisible to keyword search.
+                fts: { tokenizer: 'trigram' },
+              },
+              query: {
+                hybrid: {
+                  vectorWeight: coworkConfig.embeddingVectorWeight ?? 0.7,
+                },
+              },
+            },
+          } : {}),
         },
         ...this.buildAgentsList(primaryModel, this.engineManager.getStateDir()),
       },
@@ -1404,7 +1428,6 @@ export class OpenClawConfigSync {
     // Sync DingTalk OpenClaw channel config (via dingtalk-connector plugin) — multi-instance via accounts
     const enabledDingTalkInstances = dingTalkInstances.filter(i => i.enabled && i.clientId);
     if (enabledDingTalkInstances.length > 0) {
-      const gatewayToken = this.engineManager.getGatewayToken();
       const buildDingTalkAccountConfig = (
         inst: (typeof enabledDingTalkInstances)[0],
         secretEnvVar: string,

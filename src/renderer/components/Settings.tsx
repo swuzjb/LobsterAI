@@ -3,7 +3,7 @@ import { ArrowTopRightOnSquareIcon, ChatBubbleLeftIcon, CheckCircleIcon, Cog6Too
 import React, { useCallback,useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { AppUpdateSource,type AppUpdateInfo,type AppUpdateRuntimeState,AppUpdateStatus } from '../../shared/appUpdate/constants';
+import { type AppUpdateInfo,type AppUpdateRuntimeState,AppUpdateSource,AppUpdateStatus } from '../../shared/appUpdate/constants';
 import { ProviderName, ProviderRegistry, resolveCodingPlanBaseUrl } from '../../shared/providers';
 import { type AppConfig, defaultConfig, getCustomProviderDefaultName, getProviderDisplayName, getVisibleProviders, isCustomProvider } from '../config';
 import { APP_ID, EXPORT_FORMAT_TYPE, EXPORT_PASSWORD } from '../constants/app';
@@ -15,8 +15,8 @@ import { decryptSecret, decryptWithPassword, EncryptedPayload, encryptWithPasswo
 import { i18nService, LanguageType } from '../services/i18n';
 import { imService } from '../services/im';
 import { themeService } from '../services/theme';
-import { selectCoworkConfig } from '../store/selectors/coworkSelectors';
 import type { RootState } from '../store';
+import { selectCoworkConfig } from '../store/selectors/coworkSelectors';
 import { setAvailableModels } from '../store/slices/modelSlice';
 import type {
   CoworkAgentEngine,
@@ -27,6 +27,7 @@ import type {
 } from '../types/cowork';
 import { OpenClawSessionKeepAlive as OpenClawSessionKeepAliveValues } from '../types/cowork';
 import Modal from './common/Modal';
+import EmbeddingSettingsSection from './cowork/EmbeddingSettingsSection';
 import ErrorMessage from './ErrorMessage';
 import BrainIcon from './icons/BrainIcon';
 import PencilIcon from './icons/PencilIcon';
@@ -805,6 +806,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [coworkMemoryEnabled, setCoworkMemoryEnabled] = useState<boolean>(coworkConfig.memoryEnabled ?? true);
   const [coworkMemoryLlmJudgeEnabled, setCoworkMemoryLlmJudgeEnabled] = useState<boolean>(coworkConfig.memoryLlmJudgeEnabled ?? false);
   const [skipMissedJobs, setSkipMissedJobs] = useState<boolean>(coworkConfig.skipMissedJobs ?? true);
+  const [embeddingEnabled, setEmbeddingEnabled] = useState<boolean>(coworkConfig.embeddingEnabled ?? false);
+  const [embeddingProvider, setEmbeddingProvider] = useState<string>(coworkConfig.embeddingProvider ?? 'openai');
+  const [embeddingModel, setEmbeddingModel] = useState<string>(coworkConfig.embeddingModel ?? '');
+  const [embeddingLocalModelPath, setEmbeddingLocalModelPath] = useState<string>(coworkConfig.embeddingLocalModelPath ?? '');
+  const [embeddingVectorWeight, setEmbeddingVectorWeight] = useState<number>(coworkConfig.embeddingVectorWeight ?? 0.7);
+  const [embeddingRemoteBaseUrl, setEmbeddingRemoteBaseUrl] = useState<string>(coworkConfig.embeddingRemoteBaseUrl ?? '');
+  const [embeddingRemoteApiKey, setEmbeddingRemoteApiKey] = useState<string>(coworkConfig.embeddingRemoteApiKey ?? '');
   const [openClawSessionKeepAlive, setOpenClawSessionKeepAlive] = useState<OpenClawSessionKeepAlive>(
     coworkConfig.openClawSessionPolicy?.keepAlive || OpenClawSessionKeepAliveValues.ThirtyDays,
   );
@@ -826,6 +834,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     setCoworkMemoryEnabled(coworkConfig.memoryEnabled ?? true);
     setCoworkMemoryLlmJudgeEnabled(coworkConfig.memoryLlmJudgeEnabled ?? false);
     setSkipMissedJobs(coworkConfig.skipMissedJobs ?? true);
+    setEmbeddingEnabled(coworkConfig.embeddingEnabled ?? false);
+    setEmbeddingProvider(coworkConfig.embeddingProvider ?? 'openai');
+    setEmbeddingModel(coworkConfig.embeddingModel ?? '');
+    setEmbeddingLocalModelPath(coworkConfig.embeddingLocalModelPath ?? '');
+    setEmbeddingVectorWeight(coworkConfig.embeddingVectorWeight ?? 0.7);
+    setEmbeddingRemoteBaseUrl(coworkConfig.embeddingRemoteBaseUrl ?? '');
+    setEmbeddingRemoteApiKey(coworkConfig.embeddingRemoteApiKey ?? '');
     setOpenClawSessionKeepAlive(coworkConfig.openClawSessionPolicy?.keepAlive || OpenClawSessionKeepAliveValues.ThirtyDays);
   }, [
     coworkConfig.agentEngine,
@@ -833,7 +848,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     coworkConfig.memoryLlmJudgeEnabled,
     coworkConfig.openClawSessionPolicy?.keepAlive,
     coworkConfig.skipMissedJobs,
-    coworkConfig.openClawSessionPolicy?.keepAlive,
+    coworkConfig.embeddingEnabled,
+    coworkConfig.embeddingProvider,
+    coworkConfig.embeddingModel,
+    coworkConfig.embeddingLocalModelPath,
+    coworkConfig.embeddingVectorWeight,
+    coworkConfig.embeddingRemoteBaseUrl,
+    coworkConfig.embeddingRemoteApiKey,
   ]);
 
   useEffect(() => () => {
@@ -1467,7 +1488,14 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     || coworkMemoryEnabled !== coworkConfig.memoryEnabled
     || coworkMemoryLlmJudgeEnabled !== coworkConfig.memoryLlmJudgeEnabled
     || skipMissedJobs !== (coworkConfig.skipMissedJobs ?? true)
-    || openClawSessionKeepAlive !== (coworkConfig.openClawSessionPolicy?.keepAlive || OpenClawSessionKeepAliveValues.ThirtyDays);
+    || openClawSessionKeepAlive !== (coworkConfig.openClawSessionPolicy?.keepAlive || OpenClawSessionKeepAliveValues.ThirtyDays)
+    || embeddingEnabled !== (coworkConfig.embeddingEnabled ?? false)
+    || embeddingProvider !== (coworkConfig.embeddingProvider ?? 'openai')
+    || embeddingModel !== (coworkConfig.embeddingModel ?? '')
+    || embeddingLocalModelPath !== (coworkConfig.embeddingLocalModelPath ?? '')
+    || embeddingVectorWeight !== (coworkConfig.embeddingVectorWeight ?? 0.7)
+    || embeddingRemoteBaseUrl !== (coworkConfig.embeddingRemoteBaseUrl ?? '')
+    || embeddingRemoteApiKey !== (coworkConfig.embeddingRemoteApiKey ?? '');
   const isOpenClawAgentEngine = coworkAgentEngine === 'openclaw';
 
   const openClawProgressPercent = useMemo(() => {
@@ -1818,6 +1846,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
           memoryEnabled: coworkMemoryEnabled,
           memoryLlmJudgeEnabled: coworkMemoryLlmJudgeEnabled,
           skipMissedJobs,
+          embeddingEnabled,
+          embeddingProvider,
+          embeddingModel,
+          embeddingLocalModelPath,
+          embeddingVectorWeight,
+          embeddingRemoteBaseUrl,
+          embeddingRemoteApiKey,
         });
         if (!updated) {
           throw new Error(i18nService.t('coworkConfigSaveFailed'));
@@ -3038,6 +3073,22 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
                 )}
               </div>
             </div>
+
+            {/* Section 3: Embedding / Vector Memory Search */}
+            <EmbeddingSettingsSection
+              embeddingEnabled={embeddingEnabled}
+              embeddingProvider={embeddingProvider}
+              embeddingModel={embeddingModel}
+              embeddingVectorWeight={embeddingVectorWeight}
+              embeddingRemoteBaseUrl={embeddingRemoteBaseUrl}
+              embeddingRemoteApiKey={embeddingRemoteApiKey}
+              onEmbeddingEnabledChange={setEmbeddingEnabled}
+              onEmbeddingProviderChange={setEmbeddingProvider}
+              onEmbeddingModelChange={setEmbeddingModel}
+              onEmbeddingVectorWeightChange={setEmbeddingVectorWeight}
+              onEmbeddingRemoteBaseUrlChange={setEmbeddingRemoteBaseUrl}
+              onEmbeddingRemoteApiKeyChange={setEmbeddingRemoteApiKey}
+            />
 
           </div>
         );
