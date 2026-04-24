@@ -191,7 +191,11 @@ const PROVIDER_DEFINITIONS = [
     },
     region: 'china',
     enPriority: 0,
-    defaultModels: [{ id: 'deepseek-reasoner', name: 'DeepSeek Reasoner', supportsImage: false }],
+    defaultModels: [
+      { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', supportsImage: false },
+      { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', supportsImage: false },
+      { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner', supportsImage: false },
+    ],
   },
   {
     id: ProviderName.Moonshot,
@@ -216,7 +220,10 @@ const PROVIDER_DEFINITIONS = [
     },
     region: 'china',
     enPriority: 0,
-    defaultModels: [{ id: 'kimi-k2.5', name: 'Kimi K2.5', supportsImage: true }],
+    defaultModels: [
+      { id: 'kimi-k2.6', name: 'Kimi K2.6', supportsImage: true },
+      { id: 'kimi-k2.5', name: 'Kimi K2.5', supportsImage: true },
+    ],
     codingPlanModels: [{ id: 'kimi-for-coding', name: 'Kimi K2.5', supportsImage: true }],
   },
   {
