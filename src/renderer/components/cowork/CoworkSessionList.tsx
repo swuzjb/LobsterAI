@@ -1,6 +1,7 @@
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import React, { useMemo } from 'react';
 import { useSelector } from 'react-redux';
+
 import { i18nService } from '../../services/i18n';
 import { selectUnreadSessionIds } from '../../store/selectors/coworkSelectors';
 import type { CoworkSessionSummary } from '../../types/cowork';

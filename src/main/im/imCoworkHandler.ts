@@ -3,7 +3,6 @@
  * Adapter that enables IM (DingTalk/Feishu/Telegram) to use CoworkRuntime for tool-enabled AI execution
  */
 
-import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
 import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
@@ -11,7 +10,7 @@ import path from 'path';
 import { buildScheduledTaskEnginePrompt } from '../../scheduledTask/enginePrompt';
 import type { CoworkMessage,CoworkStore } from '../coworkStore';
 import { t } from '../i18n';
-import type { CoworkRuntime, PermissionRequest } from '../libs/agentEngine/types';
+import type { CoworkRuntime, PermissionRequest, PermissionResult } from '../libs/agentEngine/types';
 import { buildIMMediaInstruction } from './imMediaInstruction';
 import { analyzeIMReply, DEFAULT_IM_EMPTY_REPLY } from './imReplyGuard';
 import {
@@ -558,7 +557,7 @@ export class IMCoworkHandler extends EventEmitter {
     if (!tracked) return;
 
     const accumulator = this.messageAccumulators.get(sessionId) ?? this.ensureBackgroundAccumulator(sessionId);
-    console.log('[IMCoworkHandler:handleMessage] accumulator exists:', !!accumulator, 'backgroundDelivery:', !!(accumulator as any)?.backgroundDelivery);
+    console.log('[IMCoworkHandler:handleMessage] accumulator exists:', !!accumulator, 'backgroundDelivery:', !!accumulator?.backgroundDelivery);
     if (accumulator) {
       accumulator.messages.push(message);
     }

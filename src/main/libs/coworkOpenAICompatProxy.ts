@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import http from 'http';
 import { session } from 'electron';
+import http from 'http';
 
 import {
   anthropicToOpenAI,

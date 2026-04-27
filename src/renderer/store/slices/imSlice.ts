@@ -9,7 +9,11 @@ import type {
   DingTalkInstanceConfig,
   DingTalkMultiInstanceConfig,
   DingTalkOpenClawConfig,
+  DiscordInstanceConfig,
+  DiscordMultiInstanceConfig,
   DiscordOpenClawConfig,
+  EmailInstanceConfig,
+  EmailMultiInstanceConfig,
   FeishuInstanceConfig,
   FeishuMultiInstanceConfig,
   FeishuOpenClawConfig,
@@ -18,11 +22,17 @@ import type {
   IMSettings,
   NeteaseBeeChanConfig,
   NimConfig,
+  NimInstanceConfig,
+  NimMultiInstanceConfig,
   PopoOpenClawConfig,
   QQInstanceConfig,
   QQMultiInstanceConfig,
   QQOpenClawConfig,
+  TelegramInstanceConfig,
+  TelegramMultiInstanceConfig,
   TelegramOpenClawConfig,
+  WecomInstanceConfig,
+  WecomMultiInstanceConfig,
   WecomOpenClawConfig,
   WeixinOpenClawConfig,
 } from '../../types/im';
@@ -104,11 +114,30 @@ const imSlice = createSlice({
         i => i.instanceId !== action.payload
       );
     },
+    /** @deprecated Use setTelegramInstanceConfig instead */
     setTelegramOpenClawConfig: (state, action: PayloadAction<Partial<TelegramOpenClawConfig>>) => {
-      state.config.telegram = {
-        ...state.config.telegram,
-        ...action.payload,
-      };
+      const first = state.config.telegram.instances[0];
+      if (first) {
+        Object.assign(first, action.payload);
+      }
+    },
+    setTelegramInstances: (state, action: PayloadAction<TelegramInstanceConfig[]>) => {
+      state.config.telegram = { instances: action.payload };
+    },
+    setTelegramMultiInstanceConfig: (state, action: PayloadAction<TelegramMultiInstanceConfig>) => {
+      state.config.telegram = action.payload;
+    },
+    setTelegramInstanceConfig: (state, action: PayloadAction<{ instanceId: string; config: Partial<TelegramOpenClawConfig> }>) => {
+      const inst = state.config.telegram.instances.find(i => i.instanceId === action.payload.instanceId);
+      if (inst) Object.assign(inst, action.payload.config);
+    },
+    addTelegramInstance: (state, action: PayloadAction<TelegramInstanceConfig>) => {
+      state.config.telegram.instances.push(action.payload);
+    },
+    removeTelegramInstance: (state, action: PayloadAction<string>) => {
+      state.config.telegram.instances = state.config.telegram.instances.filter(
+        i => i.instanceId !== action.payload
+      );
     },
     /** @deprecated Use setQQInstanceConfig instead */
     setQQConfig: (state, action: PayloadAction<Partial<QQOpenClawConfig>>) => {
@@ -136,23 +165,108 @@ const imSlice = createSlice({
         i => i.instanceId !== action.payload
       );
     },
+    /** @deprecated Use setDiscordInstanceConfig instead */
     setDiscordConfig: (state, action: PayloadAction<Partial<DiscordOpenClawConfig>>) => {
-      state.config.discord = { ...state.config.discord, ...action.payload };
+      const first = state.config.discord.instances[0];
+      if (first) {
+        Object.assign(first, action.payload);
+      }
     },
+    setDiscordInstances: (state, action: PayloadAction<DiscordInstanceConfig[]>) => {
+      state.config.discord = { instances: action.payload };
+    },
+    setDiscordMultiInstanceConfig: (state, action: PayloadAction<DiscordMultiInstanceConfig>) => {
+      state.config.discord = action.payload;
+    },
+    setDiscordInstanceConfig: (state, action: PayloadAction<{ instanceId: string; config: Partial<DiscordOpenClawConfig> }>) => {
+      const inst = state.config.discord.instances.find(i => i.instanceId === action.payload.instanceId);
+      if (inst) Object.assign(inst, action.payload.config);
+    },
+    addDiscordInstance: (state, action: PayloadAction<DiscordInstanceConfig>) => {
+      state.config.discord.instances.push(action.payload);
+    },
+    removeDiscordInstance: (state, action: PayloadAction<string>) => {
+      state.config.discord.instances = state.config.discord.instances.filter(
+        i => i.instanceId !== action.payload
+      );
+    },
+    /** @deprecated Use setNimInstanceConfig instead */
     setNimConfig: (state, action: PayloadAction<Partial<NimConfig>>) => {
-      state.config.nim = { ...state.config.nim, ...action.payload };
+      const first = state.config.nim.instances[0];
+      if (first) {
+        Object.assign(first, action.payload);
+      }
+    },
+    setNimInstances: (state, action: PayloadAction<NimInstanceConfig[]>) => {
+      state.config.nim = { instances: action.payload };
+    },
+    setNimMultiInstanceConfig: (state, action: PayloadAction<NimMultiInstanceConfig>) => {
+      state.config.nim = action.payload;
+    },
+    setNimInstanceConfig: (state, action: PayloadAction<{ instanceId: string; config: Partial<NimConfig> }>) => {
+      const inst = state.config.nim.instances.find(i => i.instanceId === action.payload.instanceId);
+      if (inst) Object.assign(inst, action.payload.config);
+    },
+    addNimInstance: (state, action: PayloadAction<NimInstanceConfig>) => {
+      state.config.nim.instances.push(action.payload);
+    },
+    removeNimInstance: (state, action: PayloadAction<string>) => {
+      state.config.nim.instances = state.config.nim.instances.filter(
+        i => i.instanceId !== action.payload
+      );
     },
     setNeteaseBeeChanConfig: (state, action: PayloadAction<Partial<NeteaseBeeChanConfig>>) => {
       state.config['netease-bee'] = { ...state.config['netease-bee'], ...action.payload };
     },
+    /** @deprecated Use setWecomInstanceConfig instead */
     setWecomConfig: (state, action: PayloadAction<Partial<WecomOpenClawConfig>>) => {
-      state.config.wecom = { ...state.config.wecom, ...action.payload };
+      // Backward compat: update first instance if exists
+      const first = state.config.wecom.instances[0];
+      if (first) {
+        Object.assign(first, action.payload);
+      }
+    },
+    setWecomInstances: (state, action: PayloadAction<WecomInstanceConfig[]>) => {
+      state.config.wecom = { instances: action.payload };
+    },
+    setWecomMultiInstanceConfig: (state, action: PayloadAction<WecomMultiInstanceConfig>) => {
+      state.config.wecom = action.payload;
+    },
+    setWecomInstanceConfig: (state, action: PayloadAction<{ instanceId: string; config: Partial<WecomOpenClawConfig> }>) => {
+      const inst = state.config.wecom.instances.find(i => i.instanceId === action.payload.instanceId);
+      if (inst) Object.assign(inst, action.payload.config);
+    },
+    addWecomInstance: (state, action: PayloadAction<WecomInstanceConfig>) => {
+      state.config.wecom.instances.push(action.payload);
+    },
+    removeWecomInstance: (state, action: PayloadAction<string>) => {
+      state.config.wecom.instances = state.config.wecom.instances.filter(
+        i => i.instanceId !== action.payload
+      );
     },
     setPopoConfig: (state, action: PayloadAction<Partial<PopoOpenClawConfig>>) => {
       state.config.popo = { ...state.config.popo, ...action.payload };
     },
     setWeixinConfig: (state, action: PayloadAction<Partial<WeixinOpenClawConfig>>) => {
       state.config.weixin = { ...state.config.weixin, ...action.payload };
+    },
+    setEmailInstances: (state, action: PayloadAction<EmailInstanceConfig[]>) => {
+      state.config.email = { instances: action.payload };
+    },
+    setEmailMultiInstanceConfig: (state, action: PayloadAction<EmailMultiInstanceConfig>) => {
+      state.config.email = action.payload;
+    },
+    setEmailInstanceConfig: (state, action: PayloadAction<{ instanceId: string; config: Partial<EmailInstanceConfig> }>) => {
+      const inst = state.config.email.instances.find(i => i.instanceId === action.payload.instanceId);
+      if (inst) Object.assign(inst, action.payload.config);
+    },
+    addEmailInstance: (state, action: PayloadAction<EmailInstanceConfig>) => {
+      state.config.email.instances.push(action.payload);
+    },
+    removeEmailInstance: (state, action: PayloadAction<string>) => {
+      state.config.email.instances = state.config.email.instances.filter(
+        i => i.instanceId !== action.payload,
+      );
     },
     setIMSettings: (state, action: PayloadAction<Partial<IMSettings>>) => {
       state.config.settings = { ...state.config.settings, ...action.payload };
@@ -187,6 +301,11 @@ export const {
   addFeishuInstance,
   removeFeishuInstance,
   setTelegramOpenClawConfig,
+  setTelegramInstances,
+  setTelegramMultiInstanceConfig,
+  setTelegramInstanceConfig,
+  addTelegramInstance,
+  removeTelegramInstance,
   setQQConfig,
   setQQInstances,
   setQQMultiInstanceConfig,
@@ -194,11 +313,31 @@ export const {
   addQQInstance,
   removeQQInstance,
   setDiscordConfig,
+  setDiscordInstances,
+  setDiscordMultiInstanceConfig,
+  setDiscordInstanceConfig,
+  addDiscordInstance,
+  removeDiscordInstance,
   setNimConfig,
+  setNimInstances,
+  setNimMultiInstanceConfig,
+  setNimInstanceConfig,
+  addNimInstance,
+  removeNimInstance,
   setNeteaseBeeChanConfig,
   setWecomConfig,
+  setWecomInstances,
+  setWecomMultiInstanceConfig,
+  setWecomInstanceConfig,
+  addWecomInstance,
+  removeWecomInstance,
   setPopoConfig,
   setWeixinConfig,
+  setEmailInstances,
+  setEmailMultiInstanceConfig,
+  setEmailInstanceConfig,
+  addEmailInstance,
+  removeEmailInstance,
   setIMSettings,
   setStatus,
   setLoading,

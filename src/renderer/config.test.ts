@@ -1,4 +1,4 @@
-import { expect,test } from 'vitest';
+import { expect, test } from 'vitest';
 
 import {
   getCustomProviderDefaultName,
@@ -47,11 +47,11 @@ test('getCustomProviderDefaultName: custom_42 -> Custom42', () => {
 });
 
 test('getProviderDisplayName: built-in provider capitalizes first letter', () => {
-  expect(getProviderDisplayName('openai')).toBe('Openai');
+  expect(getProviderDisplayName('openai')).toBe('OpenAI');
 });
 
 test('getProviderDisplayName: built-in provider with no config', () => {
-  expect(getProviderDisplayName('deepseek')).toBe('Deepseek');
+  expect(getProviderDisplayName('deepseek')).toBe('DeepSeek');
 });
 
 test('getProviderDisplayName: custom provider without config uses default name', () => {

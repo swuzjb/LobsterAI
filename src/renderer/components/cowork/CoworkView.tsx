@@ -1,6 +1,6 @@
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
-import React, { useEffect, useRef, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useEffect, useRef,useState } from 'react';
+import { useDispatch,useSelector } from 'react-redux';
 
 import { agentService } from '../../services/agent';
 import { coworkService } from '../../services/cowork';
@@ -14,25 +14,15 @@ import {
   selectIsOpenClawEngine,
   selectIsStreaming,
 } from '../../store/selectors/coworkSelectors';
-import {
-  addMessage,
-  clearCurrentSession,
-  setCurrentSession,
-  setStreaming,
-  updateSessionStatus,
-} from '../../store/slices/coworkSlice';
-import { clearSelection, selectAction, setActions } from '../../store/slices/quickActionSlice';
+import { addMessage, clearCurrentSession, setCurrentSession, setStreaming, updateSessionStatus } from '../../store/slices/coworkSlice';
+import { clearSelection,selectAction, setActions } from '../../store/slices/quickActionSlice';
 import { clearActiveSkills, setActiveSkillIds } from '../../store/slices/skillSlice';
-import type {
-  CoworkImageAttachment,
-  CoworkSession,
-  OpenClawEngineStatus,
-} from '../../types/cowork';
+import type { CoworkImageAttachment, CoworkSession, OpenClawEngineStatus } from '../../types/cowork';
 import { toOpenClawModelRef } from '../../utils/openclawModelRef';
 import ComposeIcon from '../icons/ComposeIcon';
 import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import ModelSelector from '../ModelSelector';
-import { PromptPanel, QuickActionBar } from '../quick-actions';
+import { PromptPanel,QuickActionBar } from '../quick-actions';
 import type { SettingsOpenOptions } from '../Settings';
 import WindowTitleBar from '../window/WindowTitleBar';
 import { resolveAgentModelSelection } from './agentModelSelection';
@@ -48,14 +38,7 @@ export interface CoworkViewProps {
   updateBadge?: React.ReactNode;
 }
 
-const CoworkView: React.FC<CoworkViewProps> = ({
-  onRequestAppSettings,
-  onShowSkills,
-  isSidebarCollapsed,
-  onToggleSidebar,
-  onNewChat,
-  updateBadge,
-}) => {
+const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSkills, isSidebarCollapsed, onToggleSidebar, onNewChat, updateBadge }) => {
   const dispatch = useDispatch();
   const isMac = window.electron.platform === 'darwin';
   const [isInitialized, setIsInitialized] = useState(false);
@@ -87,25 +70,25 @@ const CoworkView: React.FC<CoworkViewProps> = ({
   const agents = useSelector((state: RootState) => state.agent.agents);
   const availableModels = useSelector((state: RootState) => state.model.availableModels);
   const globalSelectedModel = useSelector((state: RootState) => state.model.selectedModel);
-  const currentAgent = agents.find(agent => agent.id === currentAgentId);
-  const { selectedModel: headerSelectedModel } = resolveAgentModelSelection({
+  const currentAgent = agents.find((agent) => agent.id === currentAgentId);
+  const {
+    selectedModel: headerSelectedModel,
+  } = resolveAgentModelSelection({
     agentModel: currentAgent?.model ?? '',
     availableModels,
     fallbackModel: globalSelectedModel,
     engine: config.agentEngine,
   });
 
-  const buildApiConfigNotice = (
-    error?: string,
-  ): { noticeI18nKey: string; noticeExtra?: string } => {
+  const buildApiConfigNotice = (error?: string): { noticeI18nKey: string; noticeExtra?: string } => {
     const key = 'coworkModelSettingsRequired';
     if (!error) {
       return { noticeI18nKey: key };
     }
     const normalizedError = error.trim();
     if (
-      normalizedError.startsWith('No enabled provider found for model:') ||
-      normalizedError === 'No available model configured in enabled providers.'
+      normalizedError.startsWith('No enabled provider found for model:')
+      || normalizedError === 'No available model configured in enabled providers.'
     ) {
       return { noticeI18nKey: key };
     }
@@ -177,7 +160,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({
     };
     init();
 
-    const unsubscribeOpenClawStatus = coworkService.onOpenClawEngineStatus(status => {
+    const unsubscribeOpenClawStatus = coworkService.onOpenClawEngineStatus((status) => {
       setOpenClawStatus(status);
     });
 
@@ -195,18 +178,17 @@ const CoworkView: React.FC<CoworkViewProps> = ({
       unsubscribe();
       unsubscribeOpenClawStatus();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
-  const handleStartSession = async (
-    prompt: string,
-    skillPrompt?: string,
-    imageAttachments?: CoworkImageAttachment[],
-  ): Promise<boolean | void> => {
+  const handleStartSession = async (prompt: string, skillPrompt?: string, imageAttachments?: CoworkImageAttachment[]): Promise<boolean | void> => {
+    console.log('[CoworkView] handleStartSession: imageAttachments diagnosis', {
+      hasImageAttachments: !!imageAttachments,
+      count: imageAttachments?.length ?? 0,
+      details: imageAttachments?.map(a => ({ name: a.name, mimeType: a.mimeType, base64Length: a.base64Data?.length ?? 0 })) ?? [],
+    });
     if (isOpenClawEngine && openClawStatus && !isOpenClawReadyForSession(openClawStatus)) {
-      window.dispatchEvent(
-        new CustomEvent('app:showToast', { detail: i18nService.t('coworkErrorEngineNotReady') }),
-      );
+      window.dispatchEvent(new CustomEvent('app:showToast', { detail: i18nService.t('coworkErrorEngineNotReady') }));
       return false;
     }
     // Prevent duplicate submissions
@@ -259,6 +241,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({
         updatedAt: now,
         cwd: config.workingDirectory || '',
         systemPrompt: '',
+        modelOverride: '',
         executionMode: config.executionMode || 'local',
         activeSkillIds: sessionSkillIds,
         agentId: currentAgentId,
@@ -268,15 +251,12 @@ const CoworkView: React.FC<CoworkViewProps> = ({
             type: 'user',
             content: prompt,
             timestamp: now,
-            metadata:
-              sessionSkillIds.length > 0 || (imageAttachments && imageAttachments.length > 0)
-                ? {
-                    ...(sessionSkillIds.length > 0 ? { skillIds: sessionSkillIds } : {}),
-                    ...(imageAttachments && imageAttachments.length > 0
-                      ? { imageAttachments }
-                      : {}),
-                  }
-                : undefined,
+            metadata: (sessionSkillIds.length > 0 || (imageAttachments && imageAttachments.length > 0))
+              ? {
+                ...(sessionSkillIds.length > 0 ? { skillIds: sessionSkillIds } : {}),
+                ...(imageAttachments && imageAttachments.length > 0 ? { imageAttachments } : {}),
+              }
+              : undefined,
           },
         ],
       };
@@ -297,11 +277,11 @@ const CoworkView: React.FC<CoworkViewProps> = ({
       // tool calls, producing empty tool names and err=true failures).
       let effectiveSkillPrompt = skillPrompt;
       if (!skillPrompt && !isOpenClawEngine) {
-        effectiveSkillPrompt = (await skillService.getAutoRoutingPrompt()) || undefined;
+        effectiveSkillPrompt = await skillService.getAutoRoutingPrompt() || undefined;
       }
-      const combinedSystemPrompt =
-        [effectiveSkillPrompt, config.systemPrompt].filter(p => p?.trim()).join('\n\n') ||
-        undefined;
+      const combinedSystemPrompt = [effectiveSkillPrompt, config.systemPrompt]
+        .filter(p => p?.trim())
+        .join('\n\n') || undefined;
 
       // Start the actual session immediately with fallback title
       const { session: startedSession, error: startError } = await coworkService.startSession({
@@ -316,36 +296,29 @@ const CoworkView: React.FC<CoworkViewProps> = ({
 
       if (!startedSession && startError) {
         // Show the error as a system message in the temp session
-        dispatch(
-          addMessage({
-            sessionId: tempSessionId,
-            message: {
-              id: `error-${Date.now()}`,
-              type: 'system',
-              content: i18nService
-                .t('coworkErrorSessionStartFailed')
-                .replace('{error}', startError),
-              timestamp: Date.now(),
-            },
-          }),
-        );
+        dispatch(addMessage({
+          sessionId: tempSessionId,
+          message: {
+            id: `error-${Date.now()}`,
+            type: 'system',
+            content: i18nService.t('coworkErrorSessionStartFailed').replace('{error}', startError),
+            timestamp: Date.now(),
+          },
+        }));
         dispatch(updateSessionStatus({ sessionId: tempSessionId, status: 'error' }));
         return;
       }
 
       // Generate title in the background and update when ready
       if (startedSession) {
-        coworkService
-          .generateSessionTitle(prompt)
-          .then(generatedTitle => {
-            const betterTitle = generatedTitle?.trim();
-            if (betterTitle && betterTitle !== fallbackTitle) {
-              coworkService.renameSession(startedSession.id, betterTitle);
-            }
-          })
-          .catch(error => {
-            console.error('Failed to generate cowork session title:', error);
-          });
+        coworkService.generateSessionTitle(prompt).then(generatedTitle => {
+          const betterTitle = generatedTitle?.trim();
+          if (betterTitle && betterTitle !== fallbackTitle) {
+            coworkService.renameSession(startedSession.id, betterTitle);
+          }
+        }).catch(error => {
+          console.error('Failed to generate cowork session title:', error);
+        });
       }
 
       // Stop immediately if user cancelled while startup request was in flight.
@@ -363,18 +336,12 @@ const CoworkView: React.FC<CoworkViewProps> = ({
     }
   };
 
-  const handleContinueSession = async (
-    prompt: string,
-    skillPrompt?: string,
-    imageAttachments?: CoworkImageAttachment[],
-  ) => {
+  const handleContinueSession = async (prompt: string, skillPrompt?: string, imageAttachments?: CoworkImageAttachment[]) => {
     if (!currentSession) return;
     // Prevent duplicate submissions
     if (isContinuingRef.current) return;
     if (isOpenClawEngine && openClawStatus && !isOpenClawReadyForSession(openClawStatus)) {
-      window.dispatchEvent(
-        new CustomEvent('app:showToast', { detail: i18nService.t('coworkErrorEngineNotReady') }),
-      );
+      window.dispatchEvent(new CustomEvent('app:showToast', { detail: i18nService.t('coworkErrorEngineNotReady') }));
       return false;
     }
 
@@ -399,11 +366,11 @@ const CoworkView: React.FC<CoworkViewProps> = ({
       // Skip auto-routing prompt for OpenClaw — skills are loaded natively.
       let effectiveSkillPrompt = skillPrompt;
       if (!skillPrompt && !isOpenClawEngine) {
-        effectiveSkillPrompt = (await skillService.getAutoRoutingPrompt()) || undefined;
+        effectiveSkillPrompt = await skillService.getAutoRoutingPrompt() || undefined;
       }
-      const combinedSystemPrompt =
-        [effectiveSkillPrompt, config.systemPrompt].filter(p => p?.trim()).join('\n\n') ||
-        undefined;
+      const combinedSystemPrompt = [effectiveSkillPrompt, config.systemPrompt]
+        .filter(p => p?.trim())
+        .join('\n\n') || undefined;
 
       await coworkService.continueSession({
         sessionId: currentSession.id,
@@ -472,19 +439,19 @@ const CoworkView: React.FC<CoworkViewProps> = ({
 
   useEffect(() => {
     const handleNewSession = () => {
+      // Only clear when already on home (no session) — preserve __home__ draft when returning from a session
+      const shouldClear = !currentSession;
       dispatch(clearCurrentSession());
       dispatch(clearSelection());
-      window.dispatchEvent(
-        new CustomEvent('cowork:focus-input', {
-          detail: { clear: true },
-        }),
-      );
+      window.dispatchEvent(new CustomEvent('cowork:focus-input', {
+        detail: { clear: shouldClear },
+      }));
     };
     window.addEventListener('cowork:shortcut:new-session', handleNewSession);
     return () => {
       window.removeEventListener('cowork:shortcut:new-session', handleNewSession);
     };
-  }, [dispatch]);
+  }, [dispatch, currentSession]);
 
   useEffect(() => {
     if (!isOpenClawEngine) return;
@@ -508,17 +475,19 @@ const CoworkView: React.FC<CoworkViewProps> = ({
           <WindowTitleBar inline />
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-secondary">{i18nService.t('loading')}</div>
+          <div className="text-secondary">
+            {i18nService.t('loading')}
+          </div>
         </div>
       </div>
     );
   }
 
-  const shouldShowEngineStatus = Boolean(
-    isOpenClawEngine && openClawStatus && openClawStatus.phase !== 'running',
-  );
+  const shouldShowEngineStatus = Boolean(isOpenClawEngine && openClawStatus && openClawStatus.phase !== 'running');
   const isEngineError = openClawStatus?.phase === 'error';
-  const isEngineReady = isOpenClawEngine ? isOpenClawReadyForSession(openClawStatus) : true;
+  const isEngineReady = isOpenClawEngine
+    ? isOpenClawReadyForSession(openClawStatus)
+    : true;
 
   const homeHeader = (
     <div className="draggable flex h-12 items-center justify-between px-4 border-b border-border shrink-0">
@@ -544,16 +513,12 @@ const CoworkView: React.FC<CoworkViewProps> = ({
         )}
         <ModelSelector
           value={isOpenClawEngine ? headerSelectedModel : undefined}
-          onChange={
-            isOpenClawEngine
-              ? async nextModel => {
-                  if (!currentAgent || !nextModel) return;
-                  await agentService.updateAgent(currentAgent.id, {
-                    model: toOpenClawModelRef(nextModel),
-                  });
-                }
-              : undefined
-          }
+          onChange={isOpenClawEngine
+            ? async (nextModel) => {
+                if (!currentAgent || !nextModel) return;
+                await agentService.updateAgent(currentAgent.id, { model: toOpenClawModelRef(nextModel) });
+              }
+            : undefined}
         />
       </div>
       <div className="non-draggable flex items-center">
@@ -569,35 +534,30 @@ const CoworkView: React.FC<CoworkViewProps> = ({
   );
 
   // Engine status banner for error/non-running states (starting overlay is now global in App.tsx)
-  const engineStatusBanner =
-    shouldShowEngineStatus && openClawStatus && openClawStatus.phase !== 'starting' ? (
-      <div
-        className={`shrink-0 flex items-center justify-between px-4 py-2 text-xs ${
-          isEngineError
-            ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
-            : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+  const engineStatusBanner = shouldShowEngineStatus && openClawStatus && openClawStatus.phase !== 'starting' ? (
+    <div className={`shrink-0 flex items-center justify-between px-4 py-2 text-xs ${isEngineError
+      ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
+      : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+    }`}>
+      <div className="flex items-center gap-2">
+        <span>{resolveEngineStatusText(openClawStatus)}</span>
+        {typeof openClawStatus.progressPercent === 'number' && (
+          <span className="opacity-70">({Math.round(openClawStatus.progressPercent)}%)</span>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={handleRestartGateway}
+        disabled={isRestartingGateway}
+        className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isEngineError
+          ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600'
+          : 'bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600'
         }`}
       >
-        <div className="flex items-center gap-2">
-          <span>{resolveEngineStatusText(openClawStatus)}</span>
-          {typeof openClawStatus.progressPercent === 'number' && (
-            <span className="opacity-70">({Math.round(openClawStatus.progressPercent)}%)</span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={handleRestartGateway}
-          disabled={isRestartingGateway}
-          className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-            isEngineError
-              ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600'
-              : 'bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600'
-          }`}
-        >
-          {i18nService.t('coworkOpenClawRestartGateway')}
-        </button>
-      </div>
-    ) : null;
+        {i18nService.t('coworkOpenClawRestartGateway')}
+      </button>
+    </div>
+  ) : null;
 
   // When there's a current session, show the session detail view
   if (currentSession) {
@@ -630,7 +590,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="max-w-3xl mx-auto px-4 py-16 space-y-12">
+        <div className="max-w-5xl w-full min-w-[320px] mx-auto px-4 pt-[15vh] pb-8 space-y-10">
           {/* Welcome Section */}
           <div className="text-center space-y-5">
             <img src="logo.png" alt="logo" className="w-16 h-16 mx-auto" />
@@ -643,7 +603,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({
           </div>
 
           {/* Prompt Input Area - Large version with folder selector */}
-          <div className="space-y-3">
+          <div className="max-w-3xl mx-auto w-full space-y-3">
             <div className="shadow-glow-accent rounded-2xl">
               <CoworkPromptInput
                 ref={promptInputRef}
@@ -664,9 +624,12 @@ const CoworkView: React.FC<CoworkViewProps> = ({
           </div>
 
           {/* Quick Actions */}
-          <div className="space-y-4">
+          <div className="max-w-3xl mx-auto w-full space-y-4">
             {selectedAction ? (
-              <PromptPanel action={selectedAction} onPromptSelect={handleQuickActionPromptSelect} />
+              <PromptPanel
+                action={selectedAction}
+                onPromptSelect={handleQuickActionPromptSelect}
+              />
             ) : (
               <QuickActionBar actions={quickActions} onActionSelect={handleActionSelect} />
             )}

@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'vitest';
+
 import {
-  extractGatewayHistoryEntry,
-  extractGatewayHistoryEntries,
-  extractGatewayMessageText,
   buildScheduledReminderSystemMessage,
+  extractGatewayHistoryEntries,
+  extractGatewayHistoryEntry,
+  extractGatewayMessageText,
+  isHeartbeatAckText,
+  isHeartbeatPromptText,
 } from './openclawHistory';
 
 describe('openclawHistory', () => {
@@ -11,7 +14,7 @@ describe('openclawHistory', () => {
     expect(
       extractGatewayMessageText({
         content: [{ type: 'text', text: 'hello world' }],
-      }),
+      })
     ).toBe('hello world');
   });
 
@@ -19,7 +22,7 @@ describe('openclawHistory', () => {
     expect(
       extractGatewayMessageText({
         content: [{ type: 'output_text', text: 'gemini output' }],
-      }),
+      })
     ).toBe('gemini output');
   });
 
@@ -33,7 +36,7 @@ describe('openclawHistory', () => {
             { text: 'second line' },
           ],
         },
-      }),
+      })
     ).toBe('first line\nsecond line');
   });
 
@@ -42,7 +45,7 @@ describe('openclawHistory', () => {
       extractGatewayHistoryEntry({
         role: 'assistant',
         content: [{ type: 'output_text', text: 'final answer' }],
-      }),
+      })
     ).toEqual({
       role: 'assistant',
       text: 'final answer',
@@ -66,6 +69,32 @@ describe('openclawHistory', () => {
       content: [{ type: 'text', text: 'Reminder fired' }],
     });
     expect(entry).toEqual({ role: 'system', text: 'Reminder fired' });
+  });
+
+  test('filters pure heartbeat ack assistant messages', () => {
+    const entry = extractGatewayHistoryEntry({
+      role: 'assistant',
+      content: [{ type: 'text', text: 'HEARTBEAT_OK' }],
+    });
+    expect(entry).toBeNull();
+  });
+
+  test('filters pure heartbeat ack system messages with punctuation wrappers', () => {
+    const entry = extractGatewayHistoryEntry({
+      role: 'system',
+      content: [{ type: 'text', text: '("HEARTBEAT_OK")' }],
+    });
+    expect(entry).toBeNull();
+  });
+
+  test('filters heartbeat prompt user messages', () => {
+    const entry = extractGatewayHistoryEntry({
+      role: 'user',
+      content: `Read HEARTBEAT.md if it exists (workspace context). Follow it strictly.
+When reading HEARTBEAT.md, use workspace file /tmp/HEARTBEAT.md.
+Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK.`,
+    });
+    expect(entry).toBeNull();
   });
 
   test('filters unsupported roles and empty messages', () => {
@@ -106,5 +135,21 @@ Current time: Sunday, March 15th, 2026 — 11:27 (Asia/Shanghai)`,
 
   test('buildScheduledReminderSystemMessage returns null for regular user text', () => {
     expect(buildScheduledReminderSystemMessage('普通聊天消息')).toBeNull();
+  });
+
+  test('isHeartbeatAckText matches token with lightweight wrappers only', () => {
+    expect(isHeartbeatAckText('HEARTBEAT_OK')).toBe(true);
+    expect(isHeartbeatAckText('`HEARTBEAT_OK`')).toBe(true);
+    expect(isHeartbeatAckText('HEARTBEAT_OK: all clear')).toBe(false);
+  });
+
+  test('isHeartbeatPromptText matches canonical heartbeat instructions only', () => {
+    expect(
+      isHeartbeatPromptText(`Read HEARTBEAT.md if it exists.
+When reading HEARTBEAT.md, use workspace file /tmp/HEARTBEAT.md.
+Do not infer or repeat old tasks from prior chats.
+If nothing needs attention, reply HEARTBEAT_OK.`)
+    ).toBe(true);
+    expect(isHeartbeatPromptText('Please read README.md and reply OK.')).toBe(false);
   });
 });

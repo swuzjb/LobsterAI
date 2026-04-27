@@ -8,3 +8,4 @@ export {
   ProviderName,
   ProviderRegistry,
 } from './constants';
+export type { ProviderConfig } from './types';
